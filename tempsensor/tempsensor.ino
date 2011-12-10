@@ -1,46 +1,30 @@
-#include "Print.h"
 #include <SoftwareSerial.h>
+#include "MultiSerial.h"
+#include "StringReader.h"
 
-class MultiSerial : public Print
-{
-  private:
-    SoftwareSerial softSerial;
-  public:
-    MultiSerial();
-    void begin(unsigned long);
-    virtual int available();
-    virtual int read();
-    virtual size_t write(uint8_t);
-};
+MultiSerial MSerial(true);
+StringReader StrReader;
 
-MultiSerial::MultiSerial () : softSerial(2,3) {}
+// Buffer which we read data into
+const int STR_DATA_LEN = 50;
+char stringData[STR_DATA_LEN];
 
-void MultiSerial::begin(unsigned long serSpeed)
-{
-  Serial.begin(serSpeed);
-  softSerial.begin(serSpeed);
-}
-int MultiSerial::available()
-{
-  return softSerial.available();
-}
-int MultiSerial::read()
-{
-  return softSerial.read();
-}
-size_t MultiSerial::write(uint8_t c)
-{
-  softSerial.write(c);
-  return Serial.write(c);
-}
-
-MultiSerial MSerial;
+// 4 minutes * 360 readings = 24 hours
+const unsigned long TEMP_INTERVAL = 1000;//4 * 60 * 1000;
+// 4 bytes per float so memory usage is 4 * NUM_TEMP_READINGS
+const int NUM_TEMP_READINGS = 360;
+float tempData[NUM_TEMP_READINGS];
+int tempIndex = 0;
+int numReadings = 0;
+int totalReadings = 0;
+unsigned long SERIAL_SPEED = 115200;
 
 void setup()
 {
-  MSerial.begin(115200);  //Start the serial connection with the copmuter
-                         //to view the result open the serial monitor 
-                         //last button beneath the file bar (looks like a box with an antenae)
+  pinMode(13, OUTPUT);
+  MSerial.begin(SERIAL_SPEED);  //Start the serial connection with the copmuter
+                                //to view the result open the serial monitor 
+                                //last button beneath the file bar (looks like a box with an antenae)
 }
  
 void loop()
@@ -49,49 +33,6 @@ void loop()
   returnTempData();
 }
 
-const int STR_DATA_LEN = 50;
-char stringData[STR_DATA_LEN];
-char inChar=-1;
-int instrIndex = 0;
-const unsigned long MAX_SERIAL_WAIT = 100;
-
-int readString()
-{
-  // Start at 0 so that we return quickly if there is no data initially
-  unsigned long startTime = 0;
-  instrIndex = 0;
-  
-  while(true)
-  {
-    if (MSerial.available() > 0)
-    {
-      startTime = millis();
-      inChar = MSerial.read();
-      stringData[instrIndex] = inChar;
-      instrIndex++;
-      stringData[instrIndex] = '\0';
-    }
-    
-    unsigned long elapsedTime = millis() - startTime;
-    if ((elapsedTime > MAX_SERIAL_WAIT) ||
-        (instrIndex == (STR_DATA_LEN - 1)))
-    {
-      break;
-    }
-  }
-  
-  return instrIndex;
-}
-
-// 4 minutes * 360 readings = 24 hours
-const unsigned long TEMP_INTERVAL = 4 * 60 * 1000;
-// 4 bytes per float so memory usage is 4 * NUM_TEMP_READINGS
-const int NUM_TEMP_READINGS = 360;
-float tempData[NUM_TEMP_READINGS];
-int tempIndex = 0;
-int numReadings = 0;
-int totalReadings = 0;
-
 void recordTempData()
 {
   MSerial.println("CollectingData");
@@ -99,22 +40,20 @@ void recordTempData()
   while (true)
   {
     //MSerial.print("Collect Data - Index ");
-    //MSerial.println(tempIndex);
+    //MSerial.prinln(tempIndex);
     float latestTemp = getTemp();
     tempData[tempIndex] = latestTemp;
     tempIndex++;
     totalReadings++;
-    if (numReadings < NUM_TEMP_READINGS)
-    {
-      numReadings++;
-    }   
-    if (tempIndex == NUM_TEMP_READINGS)
-    {
-      tempIndex = 0;
-    }
-    if (readString() > 0) { break; }
     
-    delay(TEMP_INTERVAL);
+    if (numReadings < NUM_TEMP_READINGS) { numReadings++; }   
+    if (tempIndex == NUM_TEMP_READINGS) { tempIndex = 0; }
+    if (StrReader.readString(&MSerial, stringData, STR_DATA_LEN) > 0) { break; }
+    
+    digitalWrite(13, HIGH);    
+    delay(TEMP_INTERVAL / 2);
+    digitalWrite(13, LOW);
+    delay(TEMP_INTERVAL / 2);
   }
   
   MSerial.println("GotData");
@@ -145,29 +84,48 @@ float getVoltage(int pin){
 void returnTempData()
 {
   int outputCount = 0;
-  int i = tempIndex;        
+  int i = tempIndex + 1;       
+  if (numReadings < NUM_TEMP_READINGS)
+  {
+    // Got some blank values - skip these
+    i += (NUM_TEMP_READINGS - numReadings);
+  }
   MSerial.println("------");
-  MSerial.print("Total Readings: ");
+  MSerial.print("Total Readings, ");
   MSerial.println(totalReadings);
   if (numReadings < totalReadings)
   {
-    MSerial.print("Lost Readings: ");
+    MSerial.print("Lost Readings, ");
     MSerial.println((totalReadings - numReadings));
   }
-  MSerial.print("Reading Interval: ");
+  MSerial.print("Reading Interval, ");
   MSerial.println(TEMP_INTERVAL);
+  MSerial.println("------");
   while(outputCount < numReadings)
   {
+    delay(50);
+    digitalWrite(13, HIGH);
+    if (i >= NUM_TEMP_READINGS)
+    {
+      i = 0;
+    }
     MSerial.print(i);
     MSerial.print(",");
     MSerial.println(tempData[i]);
     outputCount++;
     i++;
-    if (i == NUM_TEMP_READINGS)
-    {
-      i = 0;
-    }
+    delay(50);
+    digitalWrite(13, LOW);
   }
   MSerial.println("------");
+  
+  if (strcmp(stringData, "reset") == 0)
+  {    
+    tempIndex = 0;
+    numReadings = 0;
+    totalReadings = 0;
+    MSerial.println("Reset");
+    MSerial.println("------");
+  }
 }
 
