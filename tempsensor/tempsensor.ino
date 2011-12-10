@@ -1,9 +1,10 @@
 #include <SoftwareSerial.h>
-#include "MultiSerial.h"
 #include "StringReader.h"
 
-MultiSerial MSerial(true);
+SoftwareSerial softSerial(2,3);
 StringReader StrReader;
+
+#define SEROUT softSerial
 
 // Buffer which we read data into
 const int STR_DATA_LEN = 50;
@@ -22,7 +23,7 @@ unsigned long SERIAL_SPEED = 115200;
 void setup()
 {
   pinMode(13, OUTPUT);
-  MSerial.begin(SERIAL_SPEED);  //Start the serial connection with the copmuter
+  SEROUT.begin(SERIAL_SPEED);  //Start the serial connection with the copmuter
                                 //to view the result open the serial monitor 
                                 //last button beneath the file bar (looks like a box with an antenae)
 }
@@ -35,12 +36,12 @@ void loop()
 
 void recordTempData()
 {
-  MSerial.println("CollectingData");
+  SEROUT.println("CollectingData");
   
   while (true)
   {
-    //MSerial.print("Collect Data - Index ");
-    //MSerial.prinln(tempIndex);
+    //SEROUT.print("Collect Data - Index ");
+    //SEROUT.prinln(tempIndex);
     float latestTemp = getTemp();
     tempData[tempIndex] = latestTemp;
     tempIndex++;
@@ -48,7 +49,7 @@ void recordTempData()
     
     if (numReadings < NUM_TEMP_READINGS) { numReadings++; }   
     if (tempIndex == NUM_TEMP_READINGS) { tempIndex = 0; }
-    if (StrReader.readString(&MSerial, stringData, STR_DATA_LEN) > 0) { break; }
+    if (StrReader.readString(&SEROUT, stringData, STR_DATA_LEN) > 0) { break; }
     
     digitalWrite(13, HIGH);    
     delay(TEMP_INTERVAL / 2);
@@ -56,7 +57,7 @@ void recordTempData()
     delay(TEMP_INTERVAL / 2);
   }
   
-  MSerial.println("GotData");
+  SEROUT.println("GotData");
 }
 
 //TMP36 Pin Variables
@@ -90,42 +91,40 @@ void returnTempData()
     // Got some blank values - skip these
     i += (NUM_TEMP_READINGS - numReadings);
   }
-  MSerial.println("------");
-  MSerial.print("Total Readings, ");
-  MSerial.println(totalReadings);
+  SEROUT.println("------");
+  SEROUT.print("Total Readings, ");
+  SEROUT.println(totalReadings);
   if (numReadings < totalReadings)
   {
-    MSerial.print("Lost Readings, ");
-    MSerial.println((totalReadings - numReadings));
+    SEROUT.print("Lost Readings, ");
+    SEROUT.println((totalReadings - numReadings));
   }
-  MSerial.print("Reading Interval, ");
-  MSerial.println(TEMP_INTERVAL);
-  MSerial.println("------");
+  SEROUT.print("Reading Interval, ");
+  SEROUT.println(TEMP_INTERVAL);
+  SEROUT.println("------");
+  digitalWrite(13, HIGH);
   while(outputCount < numReadings)
-  {
-    delay(50);
-    digitalWrite(13, HIGH);
+  {    
     if (i >= NUM_TEMP_READINGS)
     {
       i = 0;
     }
-    MSerial.print(i);
-    MSerial.print(",");
-    MSerial.println(tempData[i]);
+    SEROUT.print(i);
+    SEROUT.print(",");
+    SEROUT.println(tempData[i]);
     outputCount++;
     i++;
-    delay(50);
-    digitalWrite(13, LOW);
   }
-  MSerial.println("------");
+  digitalWrite(13, LOW);
+  SEROUT.println("------");
   
   if (strcmp(stringData, "reset") == 0)
   {    
     tempIndex = 0;
     numReadings = 0;
     totalReadings = 0;
-    MSerial.println("Reset");
-    MSerial.println("------");
+    SEROUT.println("Reset");
+    SEROUT.println("------");
   }
 }
 

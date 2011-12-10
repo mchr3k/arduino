@@ -4,7 +4,7 @@
 const int STR_DATA_LEN = 50;
 const unsigned long MAX_SERIAL_WAIT = 100;
 
-int StringReader::readString(MultiSerial* input, char* stringData, int stringDataLen)
+int StringReader::readString(Stream* input, char* stringData, int stringDataLen)
 {
   char inChar=-1;
   int strIndex = 0;
