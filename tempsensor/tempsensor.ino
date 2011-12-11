@@ -11,7 +11,7 @@ const int STR_DATA_LEN = 50;
 char stringData[STR_DATA_LEN];
 
 // 4 minutes * 360 readings = 24 hours
-const unsigned long TEMP_INTERVAL = 1000;//4 * 60 * 1000;
+const unsigned long TEMP_INTERVAL = 240000; // 4 * 60 * 1000
 // 4 bytes per float so memory usage is 4 * NUM_TEMP_READINGS
 const int NUM_TEMP_READINGS = 360;
 float tempData[NUM_TEMP_READINGS];
@@ -19,6 +19,10 @@ int tempIndex = 0;
 int numReadings = 0;
 int totalReadings = 0;
 unsigned long SERIAL_SPEED = 115200;
+
+unsigned long nowTime = 0;
+unsigned long ledOffTime = 0;
+unsigned long nextReadingTime = 0;
 
 void setup()
 {
@@ -40,6 +44,19 @@ void recordTempData()
   
   while (true)
   {
+    // Wait for the next reading time
+    unsigned long nowTime = millis();
+    if (nowTime <= ledOffTime) { digitalWrite(13, HIGH); }
+    bool loopBreak = false;
+    bool ledOn = true;
+    while (nowTime < nextReadingTime)
+    {
+      if (ledOn && (nowTime > ledOffTime)) { digitalWrite(13, LOW); ledOn = false; }      
+      if (StrReader.readString(&SEROUT, stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
+      delay(100);
+      nowTime = millis();
+    }
+    if (loopBreak) {break;}
     //SEROUT.print("Collect Data - Index ");
     //SEROUT.prinln(tempIndex);
     float latestTemp = getTemp();
@@ -47,14 +64,12 @@ void recordTempData()
     tempIndex++;
     totalReadings++;
     
+    // Schedule next reading
+    ledOffTime = nowTime + 1000;
+    nextReadingTime = nowTime + TEMP_INTERVAL;
+    
     if (numReadings < NUM_TEMP_READINGS) { numReadings++; }   
     if (tempIndex == NUM_TEMP_READINGS) { tempIndex = 0; }
-    if (StrReader.readString(&SEROUT, stringData, STR_DATA_LEN) > 0) { break; }
-    
-    digitalWrite(13, HIGH);    
-    delay(TEMP_INTERVAL / 2);
-    digitalWrite(13, LOW);
-    delay(TEMP_INTERVAL / 2);
   }
   
   SEROUT.println("GotData");
@@ -94,11 +109,10 @@ void returnTempData()
   SEROUT.println("------");
   SEROUT.print("Total Readings, ");
   SEROUT.println(totalReadings);
-  if (numReadings < totalReadings)
-  {
-    SEROUT.print("Lost Readings, ");
-    SEROUT.println((totalReadings - numReadings));
-  }
+  SEROUT.print("Num Readings, ");
+  SEROUT.println(numReadings);
+  SEROUT.print("Lost Readings, ");
+  SEROUT.println((totalReadings - numReadings));
   SEROUT.print("Reading Interval, ");
   SEROUT.println(TEMP_INTERVAL);
   SEROUT.println("------");
