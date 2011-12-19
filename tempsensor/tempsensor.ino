@@ -10,15 +10,15 @@ StringReader StrReader;
 const int STR_DATA_LEN = 50;
 char stringData[STR_DATA_LEN];
 
-// 4 minutes * 360 readings = 24 hours
-const unsigned long TEMP_INTERVAL = 240000; // 4 * 60 * 1000
-// 4 bytes per float so memory usage is 4 * NUM_TEMP_READINGS
-const int NUM_TEMP_READINGS = 360;
-float tempData[NUM_TEMP_READINGS];
+// 7 minutes * 1440 readings = 7 days
+const unsigned long TEMP_INTERVAL = 420000; // 7 * 60 * 1000
+// 1 bytes per reading so memory usage is NUM_TEMP_READINGS
+const int NUM_TEMP_READINGS = 1440;
+unsigned char tempData[NUM_TEMP_READINGS];
 int tempIndex = 0;
 int numReadings = 0;
 int totalReadings = 0;
-unsigned long SERIAL_SPEED = 115200;
+unsigned long SERIAL_SPEED = 9600;
 
 unsigned long nowTime = 0;
 unsigned long ledOffTime = 0;
@@ -57,9 +57,10 @@ void recordTempData()
       nowTime = millis();
     }
     if (loopBreak) {break;}
+    
     //SEROUT.print("Collect Data - Index ");
     //SEROUT.prinln(tempIndex);
-    float latestTemp = getTemp();
+    unsigned char latestTemp = (unsigned char)(getTemp() * 5);
     tempData[tempIndex] = latestTemp;
     tempIndex++;
     totalReadings++;
@@ -125,7 +126,9 @@ void returnTempData()
     }
     SEROUT.print(i);
     SEROUT.print(",");
-    SEROUT.println(tempData[i]);
+    double dtempData = (double)tempData[i];
+    double fixdtempData = dtempData / 5;
+    SEROUT.println(fixdtempData);
     outputCount++;
     i++;
   }

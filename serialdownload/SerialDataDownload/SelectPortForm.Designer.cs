@@ -61,6 +61,7 @@
             this.Controls.Add(this.PortsDropDown);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
             this.Name = "SelectPortForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Select Port";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SelectPortForm_FormClosed);
             this.Load += new System.EventHandler(this.SelectPortForm_Load);

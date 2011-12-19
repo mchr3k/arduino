@@ -28,60 +28,56 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.TextOutput = new System.Windows.Forms.TextBox();
-            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.panel1 = new System.Windows.Forms.Panel();
+            this.TableLayout = new System.Windows.Forms.TableLayoutPanel();
+            this.ButtonPanel = new System.Windows.Forms.Panel();
             this.ClearButton = new System.Windows.Forms.Button();
             this.SaveButton = new System.Windows.Forms.Button();
             this.DownloadButton = new System.Windows.Forms.Button();
-            this.tableLayoutPanel1.SuspendLayout();
-            this.panel1.SuspendLayout();
+            this.SplitContainer = new System.Windows.Forms.SplitContainer();
+            this.TextOutput = new System.Windows.Forms.TextBox();
+            this.Graph = new ZedGraph.ZedGraphControl();
+            this.TableLayout.SuspendLayout();
+            this.ButtonPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).BeginInit();
+            this.SplitContainer.Panel1.SuspendLayout();
+            this.SplitContainer.Panel2.SuspendLayout();
+            this.SplitContainer.SuspendLayout();
             this.SuspendLayout();
             // 
-            // TextOutput
+            // TableLayout
             // 
-            this.TextOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.TextOutput.Location = new System.Drawing.Point(3, 40);
-            this.TextOutput.Multiline = true;
-            this.TextOutput.Name = "TextOutput";
-            this.TextOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.TextOutput.Size = new System.Drawing.Size(480, 388);
-            this.TextOutput.TabIndex = 0;
+            this.TableLayout.ColumnCount = 1;
+            this.TableLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 150F));
+            this.TableLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.TableLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.TableLayout.Controls.Add(this.SplitContainer, 0, 1);
+            this.TableLayout.Controls.Add(this.ButtonPanel, 0, 0);
+            this.TableLayout.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.TableLayout.Location = new System.Drawing.Point(0, 0);
+            this.TableLayout.Name = "TableLayout";
+            this.TableLayout.RowCount = 2;
+            this.TableLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            this.TableLayout.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.TableLayout.Size = new System.Drawing.Size(486, 431);
+            this.TableLayout.TabIndex = 2;
             // 
-            // tableLayoutPanel1
+            // ButtonPanel
             // 
-            this.tableLayoutPanel1.ColumnCount = 1;
-            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel1.Controls.Add(this.TextOutput, 0, 1);
-            this.tableLayoutPanel1.Controls.Add(this.panel1, 0, 0);
-            this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
-            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
-            this.tableLayoutPanel1.RowCount = 2;
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 8.599508F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 91.40049F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(486, 431);
-            this.tableLayoutPanel1.TabIndex = 2;
-            // 
-            // panel1
-            // 
-            this.panel1.Controls.Add(this.ClearButton);
-            this.panel1.Controls.Add(this.SaveButton);
-            this.panel1.Controls.Add(this.DownloadButton);
-            this.panel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel1.Location = new System.Drawing.Point(3, 3);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(480, 31);
-            this.panel1.TabIndex = 2;
+            this.ButtonPanel.Controls.Add(this.ClearButton);
+            this.ButtonPanel.Controls.Add(this.SaveButton);
+            this.ButtonPanel.Controls.Add(this.DownloadButton);
+            this.ButtonPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.ButtonPanel.Location = new System.Drawing.Point(3, 3);
+            this.ButtonPanel.Name = "ButtonPanel";
+            this.ButtonPanel.Size = new System.Drawing.Size(480, 24);
+            this.ButtonPanel.TabIndex = 2;
             // 
             // ClearButton
             // 
             this.ClearButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.ClearButton.Location = new System.Drawing.Point(150, 0);
             this.ClearButton.Name = "ClearButton";
-            this.ClearButton.Size = new System.Drawing.Size(75, 31);
+            this.ClearButton.Size = new System.Drawing.Size(75, 24);
             this.ClearButton.TabIndex = 4;
             this.ClearButton.Text = "Clear";
             this.ClearButton.UseVisualStyleBackColor = true;
@@ -92,7 +88,7 @@
             this.SaveButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.SaveButton.Location = new System.Drawing.Point(75, 0);
             this.SaveButton.Name = "SaveButton";
-            this.SaveButton.Size = new System.Drawing.Size(75, 31);
+            this.SaveButton.Size = new System.Drawing.Size(75, 24);
             this.SaveButton.TabIndex = 3;
             this.SaveButton.Text = "Save";
             this.SaveButton.UseVisualStyleBackColor = true;
@@ -104,36 +100,87 @@
             this.DownloadButton.Enabled = false;
             this.DownloadButton.Location = new System.Drawing.Point(0, 0);
             this.DownloadButton.Name = "DownloadButton";
-            this.DownloadButton.Size = new System.Drawing.Size(75, 31);
+            this.DownloadButton.Size = new System.Drawing.Size(75, 24);
             this.DownloadButton.TabIndex = 2;
             this.DownloadButton.Text = "Download";
             this.DownloadButton.UseVisualStyleBackColor = true;
             this.DownloadButton.Click += new System.EventHandler(this.DownloadButton_Click);
+            // 
+            // SplitContainer
+            // 
+            this.SplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.SplitContainer.Location = new System.Drawing.Point(3, 33);
+            this.SplitContainer.Name = "SplitContainer";
+            // 
+            // SplitContainer.Panel1
+            // 
+            this.SplitContainer.Panel1.Controls.Add(this.TextOutput);
+            // 
+            // SplitContainer.Panel2
+            // 
+            this.SplitContainer.Panel2.Controls.Add(this.Graph);
+            this.SplitContainer.Size = new System.Drawing.Size(480, 395);
+            this.SplitContainer.SplitterDistance = 100;
+            this.SplitContainer.TabIndex = 5;
+            // 
+            // TextOutput
+            // 
+            this.TextOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.TextOutput.Location = new System.Drawing.Point(0, 0);
+            this.TextOutput.Multiline = true;
+            this.TextOutput.Name = "TextOutput";
+            this.TextOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.TextOutput.Size = new System.Drawing.Size(100, 395);
+            this.TextOutput.TabIndex = 1;
+            this.TextOutput.WordWrap = false;
+            // 
+            // Graph
+            // 
+            this.Graph.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.Graph.Location = new System.Drawing.Point(0, 0);
+            this.Graph.Name = "Graph";
+            this.Graph.ScrollGrace = 0D;
+            this.Graph.ScrollMaxX = 0D;
+            this.Graph.ScrollMaxY = 0D;
+            this.Graph.ScrollMaxY2 = 0D;
+            this.Graph.ScrollMinX = 0D;
+            this.Graph.ScrollMinY = 0D;
+            this.Graph.ScrollMinY2 = 0D;
+            this.Graph.Size = new System.Drawing.Size(376, 395);
+            this.Graph.TabIndex = 4;
             // 
             // SerialConnection
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(486, 431);
-            this.Controls.Add(this.tableLayoutPanel1);
+            this.Controls.Add(this.TableLayout);
             this.Name = "SerialConnection";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Serial Connection";
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SerialConnection_FormClosed);
             this.Load += new System.EventHandler(this.SerialConnection_Load);
-            this.tableLayoutPanel1.ResumeLayout(false);
-            this.tableLayoutPanel1.PerformLayout();
-            this.panel1.ResumeLayout(false);
+            this.TableLayout.ResumeLayout(false);
+            this.ButtonPanel.ResumeLayout(false);
+            this.SplitContainer.Panel1.ResumeLayout(false);
+            this.SplitContainer.Panel1.PerformLayout();
+            this.SplitContainer.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).EndInit();
+            this.SplitContainer.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
 
         #endregion
 
-        private System.Windows.Forms.TextBox TextOutput;
-        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
-        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.TableLayoutPanel TableLayout;
+        private System.Windows.Forms.Panel ButtonPanel;
         private System.Windows.Forms.Button SaveButton;
         private System.Windows.Forms.Button DownloadButton;
         private System.Windows.Forms.Button ClearButton;
+        private System.Windows.Forms.SplitContainer SplitContainer;
+        private System.Windows.Forms.TextBox TextOutput;
+        private ZedGraph.ZedGraphControl Graph;
     }
 }
