@@ -15,19 +15,20 @@ using ZedGraph;
 
 namespace SerialDataDownload
 {
-    public partial class SerialConnection : Form
+    public partial class SerialTempDataDownload : Form
     {
         private String mPortName = "COM1";
         private SerialPort mPort = null;
         private SaveFileDialog saveFileDialog = null;
 
-        public SerialConnection()
+        public SerialTempDataDownload()
         {
             InitializeComponent();
         }
 
-        public SerialConnection(String port) : this()
+        public SerialTempDataDownload(String port) : this()
         {
+            this.Text += " - " + port;
             mPortName = port;
             saveFileDialog = new SaveFileDialog();
             saveFileDialog.Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*";
@@ -38,6 +39,8 @@ namespace SerialDataDownload
 
         private void PrepareGraph()
         {
+            Graph.IsAntiAlias = true;
+            Graph.IsShowPointValues = true;
             Graph.GraphPane.Title.Text = "Waiting for data...";
             Graph.GraphPane.XAxis.Type = AxisType.Date;
             Graph.GraphPane.XAxis.Title.Text = "Time";
@@ -160,7 +163,7 @@ namespace SerialDataDownload
                         XDate graphDataDateTime = new XDate(dataDateTime);
                         x = (double)graphDataDateTime;
                         y = tempValue;
-                        dataList.Add(x, y);
+                        dataList.Add(x, y);//, "(" + x + "," + y + ")");
                         ii++;
                     }
                     this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");

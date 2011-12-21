@@ -1,6 +1,6 @@
 ﻿namespace SerialDataDownload
 {
-    partial class SerialConnection
+    partial class SerialTempDataDownload
     {
         /// <summary>
         /// Required designer variable.
@@ -29,19 +29,19 @@
         private void InitializeComponent()
         {
             this.TableLayout = new System.Windows.Forms.TableLayoutPanel();
+            this.SplitContainer = new System.Windows.Forms.SplitContainer();
+            this.TextOutput = new System.Windows.Forms.TextBox();
+            this.Graph = new ZedGraph.ZedGraphControl();
             this.ButtonPanel = new System.Windows.Forms.Panel();
             this.ClearButton = new System.Windows.Forms.Button();
             this.SaveButton = new System.Windows.Forms.Button();
             this.DownloadButton = new System.Windows.Forms.Button();
-            this.SplitContainer = new System.Windows.Forms.SplitContainer();
-            this.TextOutput = new System.Windows.Forms.TextBox();
-            this.Graph = new ZedGraph.ZedGraphControl();
             this.TableLayout.SuspendLayout();
-            this.ButtonPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).BeginInit();
             this.SplitContainer.Panel1.SuspendLayout();
             this.SplitContainer.Panel2.SuspendLayout();
             this.SplitContainer.SuspendLayout();
+            this.ButtonPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // TableLayout
@@ -60,6 +60,49 @@
             this.TableLayout.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.TableLayout.Size = new System.Drawing.Size(486, 431);
             this.TableLayout.TabIndex = 2;
+            // 
+            // SplitContainer
+            // 
+            this.SplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.SplitContainer.Location = new System.Drawing.Point(3, 33);
+            this.SplitContainer.Name = "SplitContainer";
+            // 
+            // SplitContainer.Panel1
+            // 
+            this.SplitContainer.Panel1.Controls.Add(this.TextOutput);
+            // 
+            // SplitContainer.Panel2
+            // 
+            this.SplitContainer.Panel2.Controls.Add(this.Graph);
+            this.SplitContainer.Size = new System.Drawing.Size(480, 395);
+            this.SplitContainer.SplitterDistance = 100;
+            this.SplitContainer.TabIndex = 5;
+            // 
+            // TextOutput
+            // 
+            this.TextOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.TextOutput.Location = new System.Drawing.Point(0, 0);
+            this.TextOutput.Multiline = true;
+            this.TextOutput.Name = "TextOutput";
+            this.TextOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.TextOutput.Size = new System.Drawing.Size(100, 395);
+            this.TextOutput.TabIndex = 1;
+            this.TextOutput.WordWrap = false;
+            // 
+            // Graph
+            // 
+            this.Graph.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.Graph.Location = new System.Drawing.Point(0, 0);
+            this.Graph.Name = "Graph";
+            this.Graph.ScrollGrace = 0D;
+            this.Graph.ScrollMaxX = 0D;
+            this.Graph.ScrollMaxY = 0D;
+            this.Graph.ScrollMaxY2 = 0D;
+            this.Graph.ScrollMinX = 0D;
+            this.Graph.ScrollMinY = 0D;
+            this.Graph.ScrollMinY2 = 0D;
+            this.Graph.Size = new System.Drawing.Size(376, 395);
+            this.Graph.TabIndex = 4;
             // 
             // ButtonPanel
             // 
@@ -106,68 +149,26 @@
             this.DownloadButton.UseVisualStyleBackColor = true;
             this.DownloadButton.Click += new System.EventHandler(this.DownloadButton_Click);
             // 
-            // SplitContainer
-            // 
-            this.SplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.SplitContainer.Location = new System.Drawing.Point(3, 33);
-            this.SplitContainer.Name = "SplitContainer";
-            // 
-            // SplitContainer.Panel1
-            // 
-            this.SplitContainer.Panel1.Controls.Add(this.TextOutput);
-            // 
-            // SplitContainer.Panel2
-            // 
-            this.SplitContainer.Panel2.Controls.Add(this.Graph);
-            this.SplitContainer.Size = new System.Drawing.Size(480, 395);
-            this.SplitContainer.SplitterDistance = 100;
-            this.SplitContainer.TabIndex = 5;
-            // 
-            // TextOutput
-            // 
-            this.TextOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.TextOutput.Location = new System.Drawing.Point(0, 0);
-            this.TextOutput.Multiline = true;
-            this.TextOutput.Name = "TextOutput";
-            this.TextOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.TextOutput.Size = new System.Drawing.Size(100, 395);
-            this.TextOutput.TabIndex = 1;
-            this.TextOutput.WordWrap = false;
-            // 
-            // Graph
-            // 
-            this.Graph.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.Graph.Location = new System.Drawing.Point(0, 0);
-            this.Graph.Name = "Graph";
-            this.Graph.ScrollGrace = 0D;
-            this.Graph.ScrollMaxX = 0D;
-            this.Graph.ScrollMaxY = 0D;
-            this.Graph.ScrollMaxY2 = 0D;
-            this.Graph.ScrollMinX = 0D;
-            this.Graph.ScrollMinY = 0D;
-            this.Graph.ScrollMinY2 = 0D;
-            this.Graph.Size = new System.Drawing.Size(376, 395);
-            this.Graph.TabIndex = 4;
-            // 
-            // SerialConnection
+            // SerialTempDataDownload
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(486, 431);
             this.Controls.Add(this.TableLayout);
-            this.Name = "SerialConnection";
+            this.DoubleBuffered = true;
+            this.Name = "SerialTempDataDownload";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Serial Connection";
+            this.Text = "Serial Temperature Data Download";
             this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SerialConnection_FormClosed);
             this.Load += new System.EventHandler(this.SerialConnection_Load);
             this.TableLayout.ResumeLayout(false);
-            this.ButtonPanel.ResumeLayout(false);
             this.SplitContainer.Panel1.ResumeLayout(false);
             this.SplitContainer.Panel1.PerformLayout();
             this.SplitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).EndInit();
             this.SplitContainer.ResumeLayout(false);
+            this.ButtonPanel.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }

@@ -49,11 +49,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SerialConnection.cs">
+    <Compile Include="SerialTempDataDownload.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SerialConnection.Designer.cs">
-      <DependentUpon>SerialConnection.cs</DependentUpon>
+    <Compile Include="SerialTempDataDownload.Designer.cs">
+      <DependentUpon>SerialTempDataDownload.cs</DependentUpon>
     </Compile>
     <Compile Include="SelectPortForm.cs">
       <SubType>Form</SubType>
@@ -63,8 +63,8 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="SerialConnection.resx">
-      <DependentUpon>SerialConnection.cs</DependentUpon>
+    <EmbeddedResource Include="SerialTempDataDownload.resx">
+      <DependentUpon>SerialTempDataDownload.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SelectPortForm.resx">
       <DependentUpon>SelectPortForm.cs</DependentUpon>

@@ -42,7 +42,7 @@ namespace SerialDataDownload
         {
             exit = false;
 
-            SerialConnection conn = new SerialConnection(PortsDropDown.SelectedItem.ToString());            
+            SerialTempDataDownload conn = new SerialTempDataDownload(PortsDropDown.SelectedItem.ToString());            
             this.Close();
             conn.Show();
         }
