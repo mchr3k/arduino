@@ -30,6 +30,7 @@
         {
             this.PortsDropDown = new System.Windows.Forms.ComboBox();
             this.SelectPortButton = new System.Windows.Forms.Button();
+            this.NoneButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // PortsDropDown
@@ -47,16 +48,27 @@
             this.SelectPortButton.Name = "SelectPortButton";
             this.SelectPortButton.Size = new System.Drawing.Size(75, 23);
             this.SelectPortButton.TabIndex = 2;
-            this.SelectPortButton.Text = "OK";
+            this.SelectPortButton.Text = "Connect";
             this.SelectPortButton.UseVisualStyleBackColor = true;
             this.SelectPortButton.Click += new System.EventHandler(this.SelectPortButton_Click);
+            // 
+            // NoneButton
+            // 
+            this.NoneButton.Location = new System.Drawing.Point(318, 12);
+            this.NoneButton.Name = "NoneButton";
+            this.NoneButton.Size = new System.Drawing.Size(75, 23);
+            this.NoneButton.TabIndex = 3;
+            this.NoneButton.Text = "No Port";
+            this.NoneButton.UseVisualStyleBackColor = true;
+            this.NoneButton.Click += new System.EventHandler(this.NoneButton_Click);
             // 
             // SelectPortForm
             // 
             this.AcceptButton = this.SelectPortButton;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(320, 44);
+            this.ClientSize = new System.Drawing.Size(401, 44);
+            this.Controls.Add(this.NoneButton);
             this.Controls.Add(this.SelectPortButton);
             this.Controls.Add(this.PortsDropDown);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
@@ -73,6 +85,7 @@
 
         private System.Windows.Forms.ComboBox PortsDropDown;
         private System.Windows.Forms.Button SelectPortButton;
+        private System.Windows.Forms.Button NoneButton;
     }
 }
 

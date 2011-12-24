@@ -28,9 +28,9 @@ namespace SerialDataDownload
             {
                 PortsDropDown.Items.Add(name);
             }
-            if (PortsDropDown.Items.Count >= 2)
+            if (PortsDropDown.Items.Count >= 3)
             {
-                PortsDropDown.SelectedIndex = 1;
+                PortsDropDown.SelectedIndex = 2;
             }
             else
             {
@@ -50,6 +50,15 @@ namespace SerialDataDownload
         private void SelectPortForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             if (exit) Application.Exit();
+        }
+
+        private void NoneButton_Click(object sender, EventArgs e)
+        {
+            exit = false;
+
+            SerialTempDataDownload conn = new SerialTempDataDownload();
+            this.Close();
+            conn.Show();
         }
     }
 }

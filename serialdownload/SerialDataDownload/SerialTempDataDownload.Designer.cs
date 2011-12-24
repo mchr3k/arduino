@@ -36,6 +36,7 @@
             this.ClearButton = new System.Windows.Forms.Button();
             this.SaveButton = new System.Windows.Forms.Button();
             this.DownloadButton = new System.Windows.Forms.Button();
+            this.LoadButton = new System.Windows.Forms.Button();
             this.TableLayout.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).BeginInit();
             this.SplitContainer.Panel1.SuspendLayout();
@@ -106,6 +107,7 @@
             // 
             // ButtonPanel
             // 
+            this.ButtonPanel.Controls.Add(this.LoadButton);
             this.ButtonPanel.Controls.Add(this.ClearButton);
             this.ButtonPanel.Controls.Add(this.SaveButton);
             this.ButtonPanel.Controls.Add(this.DownloadButton);
@@ -117,8 +119,8 @@
             // 
             // ClearButton
             // 
-            this.ClearButton.Dock = System.Windows.Forms.DockStyle.Left;
-            this.ClearButton.Location = new System.Drawing.Point(150, 0);
+            this.ClearButton.Dock = System.Windows.Forms.DockStyle.Right;
+            this.ClearButton.Location = new System.Drawing.Point(405, 0);
             this.ClearButton.Name = "ClearButton";
             this.ClearButton.Size = new System.Drawing.Size(75, 24);
             this.ClearButton.TabIndex = 4;
@@ -148,6 +150,17 @@
             this.DownloadButton.Text = "Download";
             this.DownloadButton.UseVisualStyleBackColor = true;
             this.DownloadButton.Click += new System.EventHandler(this.DownloadButton_Click);
+            // 
+            // LoadButton
+            // 
+            this.LoadButton.Dock = System.Windows.Forms.DockStyle.Left;
+            this.LoadButton.Location = new System.Drawing.Point(150, 0);
+            this.LoadButton.Name = "LoadButton";
+            this.LoadButton.Size = new System.Drawing.Size(75, 24);
+            this.LoadButton.TabIndex = 5;
+            this.LoadButton.Text = "Load";
+            this.LoadButton.UseVisualStyleBackColor = true;
+            this.LoadButton.Click += new System.EventHandler(this.LoadButton_Click);
             // 
             // SerialTempDataDownload
             // 
@@ -183,5 +196,6 @@
         private System.Windows.Forms.SplitContainer SplitContainer;
         private System.Windows.Forms.TextBox TextOutput;
         private ZedGraph.ZedGraphControl Graph;
+        private System.Windows.Forms.Button LoadButton;
     }
 }

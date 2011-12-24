@@ -17,24 +17,32 @@ namespace SerialDataDownload
 {
     public partial class SerialTempDataDownload : Form
     {
-        private String mPortName = "COM1";
+        private String mPortName = null;
         private SerialPort mPort = null;
         private SaveFileDialog saveFileDialog = null;
+        private OpenFileDialog openFileDialog = null;
 
         public SerialTempDataDownload()
         {
             InitializeComponent();
+
+            saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*";
+            saveFileDialog.FilterIndex = 1;
+            saveFileDialog.RestoreDirectory = true;
+
+            openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*";
+            openFileDialog.FilterIndex = 1;
+            openFileDialog.RestoreDirectory = true;
+
+            PrepareGraph();
         }
 
         public SerialTempDataDownload(String port) : this()
         {
             this.Text += " - " + port;
             mPortName = port;
-            saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*";
-            saveFileDialog.FilterIndex = 1;
-            saveFileDialog.RestoreDirectory = true;
-            PrepareGraph();
         }
 
         private void PrepareGraph()
@@ -90,7 +98,14 @@ namespace SerialDataDownload
 
         private void SerialConnection_Load(object sender, EventArgs e)
         {
-            ThreadPool.QueueUserWorkItem(new WaitCallback(Connect));
+            if (mPortName != null)
+            {
+                ThreadPool.QueueUserWorkItem(new WaitCallback(Connect));
+            }
+            else
+            {
+                DownloadButton.Enabled = false;
+            }
         }
 
         private void DownloadButton_Click(object sender, EventArgs e)
@@ -190,21 +205,47 @@ namespace SerialDataDownload
         {
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                try
+                string selectedFile = saveFileDialog.FileName;
+                ThreadPool.QueueUserWorkItem(new WaitCallback((object x) =>
                 {
-                    File.WriteAllText(saveFileDialog.FileName,
-                                      TextOutput.Text);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error: Could not write file to disk. Original error: " + ex.Message);
-                }
+                    try
+                    {
+                        File.WriteAllText(saveFileDialog.FileName,
+                                          TextOutput.Text);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: Could not write file to disk. Original error: " + ex.Message);
+                    }
+                }));                
             }
         }
 
         private void SerialConnection_FormClosed(object sender, FormClosedEventArgs e)
         {
             Application.Exit();
+        }
+
+        private void LoadButton_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string selectedFile = openFileDialog.FileName;
+                ThreadPool.QueueUserWorkItem(new WaitCallback((object x) =>
+                {
+                    try
+                    {
+                        string fileData = File.ReadAllText(selectedFile);
+                        this.BeginInvoke(new Action(TextOutput.Clear));
+                        this.BeginInvoke(new Action<string>(AddMessage), fileData);
+                        parseData(fileData);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: Could not read file from disk. Original error: " + ex.Message);
+                    }
+                }));
+            }
         }
     }
 }
