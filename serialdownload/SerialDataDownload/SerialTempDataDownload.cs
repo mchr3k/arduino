@@ -134,7 +134,7 @@ namespace SerialDataDownload
                 }
                 if (downloadedStr.Length > 0)
                 {
-                    parseData(downloadedStr);
+                    parseData(downloadedStr, DateTime.Now);
                 }
             }
             catch (Exception ex)
@@ -143,7 +143,7 @@ namespace SerialDataDownload
             }
         }
 
-        private void parseData(string downloadedStr)
+        private void parseData(string downloadedStr, DateTime dataDate)
         {
             string[] parts = downloadedStr.Split(new String[] {"------"}, 
                                                  StringSplitOptions.None);
@@ -210,8 +210,11 @@ namespace SerialDataDownload
                 {
                     try
                     {
+                        string dataToWrite = DateTime.Now.ToString();
+                        dataToWrite += Environment.NewLine;
+                        dataToWrite += TextOutput.Text;
                         File.WriteAllText(saveFileDialog.FileName,
-                                          TextOutput.Text);
+                                          dataToWrite);
                     }
                     catch (Exception ex)
                     {
@@ -236,9 +239,18 @@ namespace SerialDataDownload
                     try
                     {
                         string fileData = File.ReadAllText(selectedFile);
+                        string[] fileDataParts = fileData.Split(new String[] {Environment.NewLine}, 2, StringSplitOptions.RemoveEmptyEntries);
+                        if (fileDataParts.Length < 2)
+                        {
+                            throw new Exception("Invalid file format");
+                        }
+                        string fileDataDateStr = fileDataParts[0];
+                        DateTime fileDataDate = DateTime.Parse(fileDataDateStr);
+                        string fileDataPart = fileDataParts[1];
+
                         this.BeginInvoke(new Action(TextOutput.Clear));
-                        this.BeginInvoke(new Action<string>(AddMessage), fileData);
-                        parseData(fileData);
+                        this.BeginInvoke(new Action<string>(AddMessage), fileDataPart);
+                        parseData(fileDataPart, fileDataDate);
                     }
                     catch (Exception ex)
                     {
