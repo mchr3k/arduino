@@ -4,7 +4,7 @@
 const int STR_DATA_LEN = 50;
 const unsigned long MAX_SERIAL_WAIT = 100;
 
-int StringReader::readString(Stream* input, char* stringData, int stringDataLen)
+int StringReader::readString(char* stringData, int stringDataLen)
 {
   char inChar=-1;
   int strIndex = 0;
@@ -16,10 +16,10 @@ int StringReader::readString(Stream* input, char* stringData, int stringDataLen)
   
   while(true)
   {
-    if (input->available() > 0)
+    if (Serial.available() > 0)
     {
       startTime = millis();
-      inChar = input->read();
+      inChar = Serial.read();
       stringData[strIndex] = inChar;
       strIndex++;
       stringData[strIndex] = '\0';
@@ -35,8 +35,8 @@ int StringReader::readString(Stream* input, char* stringData, int stringDataLen)
   
   if (strIndex > 0)
   {
-    input->print("Read: ");
-    input->println(stringData);
+    Serial.print("Read: ");
+    Serial.println(stringData);
   }
   
   return strIndex;

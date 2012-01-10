@@ -1,10 +1,6 @@
-#include <SoftwareSerial.h>
 #include "StringReader.h"
 
-SoftwareSerial softSerial(2,3);
 StringReader StrReader;
-
-#define SEROUT softSerial
 
 // Buffer which we read data into
 const int STR_DATA_LEN = 50;
@@ -18,7 +14,7 @@ unsigned char tempData[NUM_TEMP_READINGS];
 int tempIndex = 0;
 int numReadings = 0;
 int totalReadings = 0;
-unsigned long SERIAL_SPEED = 9600;
+unsigned long SERIAL_SPEED = 115200;
 
 unsigned long nowTime = 0;
 unsigned long ledOffTime = 0;
@@ -27,7 +23,7 @@ unsigned long nextReadingTime = 0;
 void setup()
 {
   pinMode(13, OUTPUT);
-  SEROUT.begin(SERIAL_SPEED);  //Start the serial connection with the copmuter
+  Serial.begin(SERIAL_SPEED);  //Start the serial connection with the copmuter
                                 //to view the result open the serial monitor 
                                 //last button beneath the file bar (looks like a box with an antenae)
 }
@@ -40,7 +36,7 @@ void loop()
 
 void recordTempData()
 {
-  SEROUT.println("CollectingData");
+  Serial.println("CollectingData");
   
   while (true)
   {
@@ -52,14 +48,14 @@ void recordTempData()
     while (nowTime < nextReadingTime)
     {
       if (ledOn && (nowTime > ledOffTime)) { digitalWrite(13, LOW); ledOn = false; }      
-      if (StrReader.readString(&SEROUT, stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
+      if (StrReader.readString(stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
       delay(100);
       nowTime = millis();
     }
     if (loopBreak) {break;}
     
-    //SEROUT.print("Collect Data - Index ");
-    //SEROUT.prinln(tempIndex);
+    //Serial.print("Collect Data - Index ");
+    //Serial.prinln(tempIndex);
     unsigned char latestTemp = (unsigned char)(getTemp() * 5);
     tempData[tempIndex] = latestTemp;
     tempIndex++;
@@ -73,7 +69,7 @@ void recordTempData()
     if (tempIndex == NUM_TEMP_READINGS) { tempIndex = 0; }
   }
   
-  SEROUT.println("GotData");
+  Serial.println("GotData");
 }
 
 //TMP36 Pin Variables
@@ -107,16 +103,16 @@ void returnTempData()
     // Got some blank values - skip these
     i += (NUM_TEMP_READINGS - numReadings);
   }
-  SEROUT.println("------");
-  SEROUT.print("Total Readings, ");
-  SEROUT.println(totalReadings);
-  SEROUT.print("Num Readings, ");
-  SEROUT.println(numReadings);
-  SEROUT.print("Lost Readings, ");
-  SEROUT.println((totalReadings - numReadings));
-  SEROUT.print("Reading Interval, ");
-  SEROUT.println(TEMP_INTERVAL);
-  SEROUT.println("------");
+  Serial.println("------");
+  Serial.print("Total Readings, ");
+  Serial.println(totalReadings);
+  Serial.print("Num Readings, ");
+  Serial.println(numReadings);
+  Serial.print("Lost Readings, ");
+  Serial.println((totalReadings - numReadings));
+  Serial.print("Reading Interval, ");
+  Serial.println(TEMP_INTERVAL);
+  Serial.println("------");
   digitalWrite(13, HIGH);
   while(outputCount < numReadings)
   {    
@@ -124,24 +120,24 @@ void returnTempData()
     {
       i = 0;
     }
-    SEROUT.print(i);
-    SEROUT.print(",");
+    Serial.print(i);
+    Serial.print(",");
     double dtempData = (double)tempData[i];
     double fixdtempData = dtempData / 5;
-    SEROUT.println(fixdtempData);
+    Serial.println(fixdtempData);
     outputCount++;
     i++;
   }
   digitalWrite(13, LOW);
-  SEROUT.println("------");
+  Serial.println("------");
   
   if (strcmp(stringData, "reset") == 0)
   {    
     tempIndex = 0;
     numReadings = 0;
     totalReadings = 0;
-    SEROUT.println("Reset");
-    SEROUT.println("------");
+    Serial.println("Reset");
+    Serial.println("------");
   }
 }
 

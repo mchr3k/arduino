@@ -57,7 +57,7 @@ namespace SerialDataDownload
 
         private void Connect(object unused)
         {
-            mPort = new SerialPort(mPortName, 9600, Parity.None, 8, StopBits.One);
+            mPort = new SerialPort(mPortName, 115200, Parity.None, 8, StopBits.One);
             mPort.Handshake = Handshake.RequestToSend;
             mPort.Encoding = Encoding.ASCII;
             while (true)
