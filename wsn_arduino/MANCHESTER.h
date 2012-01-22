@@ -42,7 +42,8 @@ With an error allowance of 22.5 usec we get the following:
 */
 #define LowCount 40  //pulse lower count limit on capture
 #define HighCount 85  //pulse higher count limit on capture
-#define LongCount 107  //pulse lower count on double pulse
+#define LongLowCount 102  //pulse lower count on double pulse
+#define LongHighCount 148  //pulse higher count on double pulse
 
 #define TimeOutDefault -1  //the timeout in msec default blocks
 

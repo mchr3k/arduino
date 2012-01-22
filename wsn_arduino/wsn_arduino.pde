@@ -74,10 +74,8 @@ void readMsg()
         unsigned int preamble = (msgData[0] & (0b111111 << 10)) >> 10;
         if (preamble != 0b010101) continue;
         xoNodeID = (msgData[0] & (0b11111 << 5)) >> 5;
-        if ((xoNodeID < 0) || (MAX_NODE_ID < xoNodeID)) continue;        
         unsigned int thisMsgNum = msgData[0] & 0b11111;
-        if ((thisMsgNum < 0) || (MAX_MSG_NUM < thisMsgNum)) continue;
-        if (msgData[1] != msgData[2]) continue;        
+        if (msgData[1] != msgData[2]) continue;
         // Ignore duplicates
         if (msgNum[xoNodeID] == thisMsgNum) continue;
         msgNum[xoNodeID] = thisMsgNum;

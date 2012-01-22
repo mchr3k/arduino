@@ -131,14 +131,18 @@ unsigned int MANCHESTERClass::Receive(void)
       while(digitalRead(RxPin) == 0)
         countlow = TimerCount;
 
-      if((counthigh < LowCount) || (counthigh > HighCount))
+      // We have to check againt a double low here because the pre-amble
+      // ends with a double low
+      if((countlow < LowCount) || (countlow > LongHighCount))
       {
         // Transition was too slow/fast
         locked = false;
         break; //this cant be a valid pulse
       }//end of not valid
 
-      if((i > 9) && (countlow > LongCount))
+      if((i > 9) && 
+         (countlow > LongLowCount) && 
+         (countlow < LongHighCount))
       {
         // We have seen at least 10 regular transitions
         // Lock sequence ends with 01
@@ -178,7 +182,14 @@ unsigned int MANCHESTERClass::Receive(void)
         while(digitalRead(RxPin) != 0)
           counthigh = TimerCount;  //end of count is high
 
-        if(counthigh > LongCount)  //is this a double 1
+        if((counthigh < LowCount) ||
+           (counthigh > LongHighCount))
+        {
+          // Interference - give up
+          locked = false;
+          break;
+        }
+        if(counthigh > LongLowCount)  //is this a double 1
         {
           ManBits |= _BV(0);  //incorporate 1 in manbits
           NumMB += 1; //count the bit
@@ -198,7 +209,14 @@ unsigned int MANCHESTERClass::Receive(void)
         while(digitalRead(RxPin) == 0)
           countlow = TimerCount;  //end of count is low
 
-        if(countlow > LongCount)  //is this a double 0
+        if((countlow < LowCount) ||
+           (countlow > LongHighCount))
+        {
+          // Interference - give up
+          locked = false;
+          break;
+        }
+        if(countlow > LongLowCount)  //is this a double 0
         {
           ManBits &= ~_BV(0);  //incorporate 0 in manbits
           NumMB += 1; //count the bit  
@@ -208,23 +226,27 @@ unsigned int MANCHESTERClass::Receive(void)
         }//end of we have a double 1
       }//end of read the raw RX input
 
-      // This section decodes the raw RX bits
-      unsigned int data = 0; //the decoded 16 bits 
-      for(int i = 0; i < 16; i++)
+      // are we still locked?
+      if (locked)
       {
-        data = data << 1; // move the last bit into data
+        // This section decodes the raw RX bits
+        unsigned int data = 0; //the decoded 16 bits 
+        for(int i = 0; i < 16; i++)
+        {
+          data = data << 1; // move the last bit into data
 
-        // ManBits holds 32 bits of manchester data
-        // 1 = LO,HI
-        // 0 = HI,LO
-        // We can decode each bit by ANDing with _BV(0)
-        // and then shifting by 2 to select the next bit
-        // to decode.
-        if(ManBits & _BV(0) == 1) // is the data bit a 1
-          data |= _BV(0);  // store the one
-        ManBits = ManBits >> 2; //get next data bit
-      }//end of get the decoded data from manchester bits
-      return data; 
+          // ManBits holds 32 bits of manchester data
+          // 1 = LO,HI
+          // 0 = HI,LO
+          // We can decode each bit by ANDing with _BV(0)
+          // and then shifting by 2 to select the next bit
+          // to decode.
+          if(ManBits & _BV(0) == 1) // is the data bit a 1
+            data |= _BV(0);  // store the one
+          ManBits = ManBits >> 2; //get next data bit
+        }//end of get the decoded data from manchester bits
+        return data; 
+      } // end of inner its locked
     }//end of its locked
   }//end of look until find data or timeout
 }//end of receive data
