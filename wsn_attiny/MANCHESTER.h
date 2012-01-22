@@ -56,6 +56,7 @@ class MANCHESTERClass
     void Transmit(unsigned int data);  //transmit 16 bits of data
     void SetRxPin(char pin);  //set the arduino digital pin for receive. default 4.
     unsigned int Receive(void);  //receive 16 bits of data. 0 if times out.
+    unsigned char ReceivedTimeout(void); //whether the receive timed out
     void SetTimeOut(unsigned int timeout); //set timeout in ms. default blocks.
     
   private:
@@ -64,6 +65,7 @@ class MANCHESTERClass
     unsigned char  RxPin;
     unsigned char  TxPin;
     unsigned int  TimeOut;
+    unsigned char WasTimeout;
    
 };//end of class MANCHESTER
 
