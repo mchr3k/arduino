@@ -158,9 +158,9 @@ void doSendMsg(unsigned int data, unsigned int msgNum)
   // This is a total of 3x unsigned ints     
   unsigned int preamble = (0b010101 << 10);
   unsigned int nodeID = ((NODE_ID & 0b11111) << 5);
-  unsigned int firstByte = preamble | nodeID | (msgNum & 0b11111);
+  unsigned int firstPacket = preamble | nodeID | (msgNum & 0b11111);
   
-  MANCHESTER.Transmit(firstByte);
+  MANCHESTER.Transmit(firstPacket);
   MANCHESTER.Transmit(data);
   MANCHESTER.Transmit(data);
 }
