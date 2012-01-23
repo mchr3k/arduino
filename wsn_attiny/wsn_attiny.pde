@@ -20,14 +20,13 @@
 
 unsigned int Tdata = 0;  //the 16 bits to send
 
-const int DEEP_SLEEP_TIME = 4000;
 const int NODE_ID = 1;
 
 void setup() 
 {   
   randomSeed(analogRead(0));  
   MANCHESTER.SetTxPin(TxPin);
-  // Setup watchdog to notify us every 8 seconds
+  // Setup watchdog to notify us every 4 seconds
   setup_watchdog(8);
 }//end of setup
 
@@ -84,8 +83,8 @@ void setup()
 // 0=16ms, 1=32ms, 2=64ms, 3=128ms, 4=250ms, 5=500ms
 // 6=1sec, 7=2sec, 8=4sec, 9=8sec
 // From http://interface.khm.de/index.php/lab/experiments/sleep_watchdog_battery/
-void setup_watchdog(int ii) {
-  
+void setup_watchdog(int ii) 
+{  
  // The prescale value is held in bits 5,2,1,0
  // This block moves ii itno these bits
  byte bb;
@@ -122,12 +121,11 @@ void loop()
 }//end of loop
 
 // wait for totalTime ms
-// the wait interval is to the nearest 8 seconds
-void deepsleep(int totalTime)
+// the wait interval is to the nearest 4 seconds
+void deepsleep(int waitTime)
 {
   // Calculate the delay time
   int waitCounter = 0;
-  int waitTime = totalTime;//totalTime / DEEP_SLEEP_TIME;
   while (waitCounter != waitTime) 
   {
     system_sleep();
