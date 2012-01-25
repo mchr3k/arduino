@@ -102,4 +102,7 @@ ATTinyWatchdogClass ATTINYWATCHDOG;
 
 ISR(WDT_vect) 
 {
+  // Don't do anything here but we must include this
+  // block of code otherwise the interrupt calls an
+  // uninitialized interrupt handler.
 }
