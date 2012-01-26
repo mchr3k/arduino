@@ -1,7 +1,7 @@
 Read this first
 ======
 
-This project uses git submodules to include the Manchester library from ("arduino-libs-manchester":https://github.com/mchr3k/arduino-libs-manchester). 
+This project uses git submodules to include the Manchester library from ([arduino-libs-manchester](https://github.com/mchr3k/arduino-libs-manchester)). 
 The correct way to interact with this is as follows. 
 
 Getting started
