@@ -15,7 +15,7 @@ Or
 
       git clone <git url> .
       git submodule update --init
-
+      
 Picking up a change to the Submodule
 ------
 
@@ -36,4 +36,9 @@ This is the correct approach to fetch the latest changes from the external repos
 Making changes to a submodule in place
 ------
 
-NOTE: I am still trying to work this out. I am currently hitting [this issue](http://stackoverflow.com/questions/4445738/unable-to-push-commits-from-a-git-submodule).
+Before you make any changes you have to modify the submodule checkout to actually refer to the master branch rather than a specific checkout.
+
+      cd libraries/Manchester
+      git checkout master
+      
+Once this is complete you can make changes and check them in as normal, treating libraries/Manchester as its own git repository. Any time you change the revision of the files within libraries/Manchester you should also choose whether to checkin the corresponding update to libraries/Manchester within the enclosing respository which still refers to an explicit revision.
