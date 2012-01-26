@@ -1,3 +1,0 @@
-[submodule "libraries"]
-	path = libraries
-	url = git@github.com:mchr3k/arduino-libs.git
