@@ -29,15 +29,58 @@ void setup()
   // ADC used for reading a sensor
   // ATTINYWATCHDOG turns off ADC before sleep and
   // restores it when we wake up
+  
+  // We don't use pins 0-2 so set these to INPUT
+  pinMode(0, INPUT);
+  pinMode(1, INPUT);
+  pinMode(2, INPUT);
+  
+  // Pins 3, 4 are used for output
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  
+  // Pin 3 is used as a controlled VCC while we are awake
+  digitalWrite(3, HIGH);
 }//end of setup
 
 void loop() 
 {
   Tdata +=1;
   sendMsg(Tdata);    
-  // deep sleep for 2 * 4 seconds = 8 seconds
-  ATTINYWATCHDOG.sleep(2);
+  deepsleep();
 }//end of loop
+
+void deepsleep()
+{
+  // Turn our VCC pin off
+  digitalWrite(3, LOW);
+  // Set pins to input before sleep
+  pinMode(3, INPUT);
+  pinMode(4, INPUT);
+  // deep sleep for 2 * 4 seconds = 8 seconds
+  ATTINYWATCHDOG.sleep(2);  
+  // Set pins to output after sleep
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  // Pin 3 is used as a controlled VCC while we are awake
+  digitalWrite(3, HIGH);
+}
+
+void livesleep(unsigned long time)
+{
+  // Turn our VCC pin off
+  digitalWrite(3, LOW);
+  // Set output pins to input
+  pinMode(3, INPUT);
+  pinMode(4, INPUT);
+  // delay for the requested time
+  delay(time);  
+  // Set pins to output after sleep
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  // Pin 3 is used as a controlled VCC while we are awake
+  digitalWrite(3, HIGH);
+}
 
 unsigned int readingNum = 1;
 
@@ -45,10 +88,13 @@ void sendMsg(unsigned int data)
 {
   readingNum++;
   if (readingNum >= 31) readingNum = 0;
+  
   doSendMsg(data, readingNum);
-  delay(500 + random(500));
+  
+  livesleep(500 + random(500));
   doSendMsg(data, readingNum);
-  delay(500 + random(500));
+  
+  livesleep(500 + random(500));
   doSendMsg(data, readingNum);
 }
 
