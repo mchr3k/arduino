@@ -16,14 +16,14 @@ void setup()
   pinMode(4, OUTPUT);  
   // Pin 3 is used as a controlled VCC while we are awake
   digitalWrite(3, HIGH);
-  // VW Setup
-  vw_setup(1000);
+  // VW Setup  
   vw_set_tx_pin(4);
+  vw_setup(1000);
 }
 
 void loop() 
 {
-  const char *msg = "hello";
+  const char *msg = "DDDDDDDDDD";
   vw_send((uint8_t *)msg, strlen(msg));
-  delay(400);
+  delay(5000);
 }
