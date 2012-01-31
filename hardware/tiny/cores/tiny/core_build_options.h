@@ -34,10 +34,14 @@
 
 
 /*=============================================================================
-  Build options for the ATtiny2313 processor
+  Build options for the ATtinyX313 processor
 =============================================================================*/
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtiny2313__ ) || defined( __AVR_ATtiny4313__ )
+#define __AVR_ATtinyX313__
+#endif
+
+#if defined( __AVR_ATtinyX313__ )
 
 /*
   The old standby ... millis on Timer 0.

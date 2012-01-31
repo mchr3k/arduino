@@ -88,7 +88,7 @@ analogReference constants for ATmega168.  These are NOT correct for the ATtiny84
 */
 
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 
 #define DEFAULT (0)
 

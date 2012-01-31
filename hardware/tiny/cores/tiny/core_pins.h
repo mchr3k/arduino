@@ -28,10 +28,10 @@
 
 
 /*=============================================================================
-  Pin definitions for the ATtiny2313
+  Pin definitions for the ATtinyX313
 =============================================================================*/
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 
 #define PIN_D0  ( 0)
 #define PIN_D1  ( 1)

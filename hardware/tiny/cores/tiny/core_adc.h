@@ -272,10 +272,10 @@ __attribute__((always_inline)) static inline uint16_t ADC_GetDataRegister( void 
 
 
 /*=============================================================================
-  Veneer for the (non-existant) ATtiny2313 ADC
+  Veneer for the (non-existant) ATtinyX313 ADC
 =============================================================================*/
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 
 typedef enum
 {

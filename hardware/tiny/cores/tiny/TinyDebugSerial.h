@@ -588,7 +588,7 @@ class TinyDebugSerialWriter_16_115200 : public TinyDebugSerialWriter
 };
 
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 
   #define TINY_DEBUG_SERIAL_REGISTER    0x1B
   #define TINY_DEBUG_SERIAL_BIT         1

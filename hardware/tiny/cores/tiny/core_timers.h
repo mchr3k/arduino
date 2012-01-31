@@ -56,10 +56,10 @@
 =============================================================================*/
 
 /*=============================================================================
-  Veneer for the two ATtiny2313 timers
+  Veneer for the two ATtinyX313 timers
 =============================================================================*/
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 
 #define Timer0_OutputComparePinA  CORE_OC0A_PIN
 #define Timer0_OutputComparePinB  CORE_OC0B_PIN

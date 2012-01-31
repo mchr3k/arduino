@@ -32,7 +32,7 @@
 
 #include "core_build_options.h"
 
-#if defined( __AVR_ATtiny2313__ )
+#if defined( __AVR_ATtinyX313__ )
 #define PORT_A_ID 1
 #define PORT_B_ID 2
 #define PORT_D_ID 4
