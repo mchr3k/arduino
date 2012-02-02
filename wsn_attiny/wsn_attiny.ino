@@ -48,7 +48,7 @@ void loop()
 {
   Tdata +=1;
   sendMsg(Tdata);
-  deepsleep();
+  //deepsleep();
 }//end of loop
 
 void deepsleep()
@@ -91,12 +91,12 @@ void sendMsg(unsigned int data)
   if (readingNum >= 31) readingNum = 0;
   
   doSendMsg(data, readingNum);
-  
+  /*
   livesleep(500 + random(500));
   doSendMsg(data, readingNum);
   
   livesleep(500 + random(500));
-  doSendMsg(data, readingNum);
+  doSendMsg(data, readingNum);*/
 }
 
 void doSendMsg(unsigned int data, unsigned int msgNum)
