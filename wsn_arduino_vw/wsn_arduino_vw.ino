@@ -1,3 +1,4 @@
+#include <PString.h>
 #include <VirtualWireNewTiny.h>
 
 void setup() 
@@ -10,6 +11,9 @@ void setup()
 
 void loop() 
 {  
+  char buffer[50];
+  PString mystring(buffer, sizeof(buffer));
+  
   uint8_t buf[VW_MAX_MESSAGE_LEN];
   uint8_t buflen = VW_MAX_MESSAGE_LEN;
   //if (vw_get_message(buf, &buflen)) // Non-blocking
@@ -17,12 +21,35 @@ void loop()
     vw_get_message(buf, &buflen);
     int i;
     // Message with a good checksum received, dump HEX
-    Serial.print("Got: ");
+    Serial.print("Str: ");
+    for (i = 0; i < buflen; i++)
+    {
+      Serial.print(buf[i]);
+    }
+    Serial.println();
+    Serial.print("Hex: ");
     for (i = 0; i < buflen; i++)
     {
       Serial.print(buf[i], HEX);
+    }
+    Serial.println();
+    Serial.print("Got: ");
+    for (i = 0; i < buflen; i++)
+    {
+      mystring.begin();
+      mystring.print(buf[i], BIN);
+      int len = mystring.length();
+      mystring.begin();
+      for (int i = 0; i < (8 - len);i++)
+      {
+        mystring.print("0");
+      }
+      mystring.print(buf[i], BIN);
+      Serial.print(mystring);
       Serial.print(" ");
     }
-    Serial.println("");
+    Serial.println();
+    Serial.println();
+    delay(10 * 1000);
   }
 }

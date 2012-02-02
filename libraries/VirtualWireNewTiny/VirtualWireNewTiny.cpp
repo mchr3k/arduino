@@ -256,21 +256,37 @@ void vw_pll()
 // Speed is in bits per sec RF rate
 void vw_setup(uint16_t speed)
 {
-  // Calculate the OCR1A overflow count based on the required bit speed
-  // and CPU clock rate
-  uint16_t ocr1a = (F_CPU / 8UL) / speed;
-
+  // Force speed to be 1000 for now
+  speed = 1000;
+  
 #ifndef TEST
   #if defined(__AVR_ATtinyX5__)
   // ATtiny85 - http://www.atmel.com/dyn/resources/prod_documents/doc2586.pdf
-  // CTC1 - Timer mode: Clear Timer on Compare match (CTC)
-  // CS13,12,11,10 - CLK/1: No prescaling
-  TCCR1 = _BV(CTC1) | _BV(CS10); 
-  // Enable timer interrupts    
+  // NOTE: We are using an 8 bit timer so we must use an ocr1a value less than 256
+  // CTC1 - Timer mode: Clear Timer on Compare match (CTC)  
+  // CS13,12,11,10 - CLK/8: Count at 1/8th clock speed
+  TCCR1 = _BV(CTC1) | _BV(CS12); 
+  // Enable timer interrupts
   TIMSK |= _BV(OCIE1A);
-  OCR1A = ocr1a;
-  OCR1C = ocr1a;
+  // 8MHz/8 => 1000000 / (8000000 / 8) = 1uS/tic
+  // 1000Hz => 1000000 / 1000 => 1000uS/tic
+  // Actually want 8 samples per bit
+  // 8000Hz => 1000000 / 8000 => 125uS/tic
+  // 125 / 1 = 125 tics
+  //
+  // OCR1A = 125
+  //
+  // OCR1A = (1000000 / (speed * 8)) / (1000000 / (F_CPU / CLK_PRE))
+  // OCR1A = (1 / (speed * 8)) / (1 / (F_CPU / CLK_PRE))
+  // OCR1A = (F_CPU / CLK_PRE) / (speed * 8)
+  // OCR1A = F_CPU / CLK_PRE / speed / 8
+  // CLK_PRE = (OCR1A * speed * 8) / F_CPU
+  OCR1A = 125;
   #else
+  // Calculate the OCR1A overflow count based on the required bit speed
+  // and CPU clock rate
+  uint16_t ocr1a = (F_CPU / 8UL) / speed;
+  
   // ATmega328 (Arduino Uno) - http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf
   // WGM13,12,11,10 - Timer mode: Clear Timer on Compare match (CTC)
   // CS12,11,10 - CLK/1: No prescaling

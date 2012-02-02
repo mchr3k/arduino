@@ -29,7 +29,7 @@ void loop()
   Serial.print("Read data from node ");
   Serial.print(xoNodeID);
   Serial.print(": ");
-  Serial.println(xoData);
+  Serial.println(xoData);  
 }
 
 void readMsg()
