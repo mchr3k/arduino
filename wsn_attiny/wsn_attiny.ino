@@ -42,30 +42,12 @@ void setup()
   
   // Pin 3 is used as a controlled VCC while we are awake
   digitalWrite(3, HIGH);
-  
-  // 8000000 / 8 / 1000 / 8 = 125
-  // 125 tics at 8MHz = 15.63
-  TCCR1 = _BV(CTC1) | _BV(CS12); 
-  // Enable timer interrupts
-  TIMSK |= _BV(OCIE1A);
-  OCR1A = 125;
-  OCR1C = 125;
 }//end of setup
-
-unsigned long currentTime = 0;
-unsigned long lastTime = 0;
-
-SIGNAL(TIMER1_COMPA_vect)
-{
-  lastTime = currentTime;
-  currentTime = micros();
-}
 
 void loop() 
 {
   Tdata +=1;
-  //sendMsg(Tdata);
-  sendMsg((currentTime - lastTime));
+  sendMsg(Tdata);
   deepsleep();
 }//end of loop
 
