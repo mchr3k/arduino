@@ -27,11 +27,12 @@ With an error allowance of 22.5 usec we get the following:
 #define MinLongCount 103  //pulse lower count on double pulse
 #define MaxLongCount 147  //pulse higher count on double pulse
 
-static uint8_t rx_sample = 0;
-static uint8_t rx_last_sample = 0;
+static int rx_sample = 0;
+static int rx_last_sample = 0;
 static uint8_t rx_count = 0;
 static uint8_t rx_sync_count = 0;
 static uint8_t rx_mode = 0;
+static uint8_t rx_max_mode = 0;
 
 unsigned int rx_manBits = 0; //the received manchester 32 bits
 unsigned char rx_numMB = 0;  //the number of received manchester bits
@@ -74,19 +75,21 @@ ISR(TIMER2_COMPA_vect)
 {
   // Increment counter  
   rx_count += 5;
-  TCNT2 = 0;
   
   // Check for value change
   rx_sample = digitalRead(RxPin);
   boolean transition = (rx_sample != rx_last_sample);
 
+  // Record the max mode we entered
+  if (rx_max_mode < rx_mode) rx_max_mode = rx_mode;
+  
   if (rx_mode == 0)
   {
-    // Wait for first high
-    if (rx_sample == 1) 
-    {
+    // Wait for first transition to HIGH
+    if (transition && (rx_sample == 1))
+    {        
       rx_count = 0;
-      rx_sync_count = 0;      
+      rx_sync_count = 0;
       rx_mode = 1;
     }
   }
@@ -100,14 +103,12 @@ ISR(TIMER2_COMPA_vect)
       {
         // Transition was too slow/fast
         rx_mode = 0;
-        rx_sync_count = 0;
       }
       else if((rx_sample == 0) &&
               ((rx_count < MinCount) || (rx_count > MaxLongCount)))
       {
         // Transition was too slow/fast
-        rx_mode = 0;
-        rx_sync_count = 0;
+        rx_mode = 0;        
       }
       else
       {
@@ -140,18 +141,18 @@ ISR(TIMER2_COMPA_vect)
     // Receive data
     if (transition)
     {
-      if((rx_sync_count < MinCount) ||
-         (rx_sync_count > MaxLongCount))
+      if((rx_count < MinCount) ||
+         (rx_count > MaxLongCount))
       {
         // Interference - give up
         rx_mode = 0;
       }
       else
       {
-        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_sample);
-        if(rx_sync_count > MinLongCount)  //is this a double bit
+        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
+        if(rx_count > MinLongCount)  //is this a double bit
         {
-          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_sample);
+          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
         }
         
         if (rx_curByte >= rx_maxBytes)
@@ -159,7 +160,7 @@ ISR(TIMER2_COMPA_vect)
           rx_mode == 3;
         }
         
-        rx_sync_count = 0;
+        rx_count = 0;
       }
     }
   }
@@ -182,7 +183,7 @@ void setup()
  Serial.begin(9600);
   
  //ATMega328 timer 2 (http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf)
- TCCR2A = 0x00;
+ TCCR2A = _BC(WGM21); // reset counter on match
  TCCR2B = _BV(CS22) | _BV(CS21); //counts every 16 usec with 16 Mhz clock
  OCR2A = 5; // interrupt every 5 counts
  TIMSK2 = _BV(OCIE2A);
@@ -205,6 +206,8 @@ void loop()
   Serial.print(rx_sync_count);
   Serial.print(", Mode: ");
   Serial.print(rx_mode);
+  Serial.print(", Max_Mode: ");
+  Serial.print(rx_max_mode);  
   Serial.println();
   /*readMsg();
   Serial.print("Read data from node ");
