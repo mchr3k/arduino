@@ -47,8 +47,7 @@ void setup()
 void loop() 
 {
   Tdata +=1;
-  MANCHESTER.Transmit(Tdata);
-  //sendMsg(Tdata);
+  sendMsg(Tdata);
   //deepsleep();
 }//end of loop
 

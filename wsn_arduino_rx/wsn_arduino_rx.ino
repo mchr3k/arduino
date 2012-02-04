@@ -1,4 +1,3 @@
-#include <PString.h>
 #include <avr/interrupt.h>
 
 #define RxPin 4
@@ -28,20 +27,25 @@ With an error allowance of 22.5 usec we get the following:
 #define MinLongCount 103  //pulse lower count on double pulse
 #define MaxLongCount 147  //pulse higher count on double pulse
 
+#define RX_MODE_PRE  0
+#define RX_MODE_SYNC 1
+#define RX_MODE_DATA 2
+#define RX_MODE_MSG  3
+#define RX_MODE_IDLE 4
+
 static int rx_sample = 0;
 static int rx_last_sample = 0;
 static uint8_t rx_count = 0;
 static uint8_t rx_sync_count = 0;
-static uint8_t rx_mode = 0;
+static uint8_t rx_mode = RX_MODE_IDLE;
 
 unsigned int rx_manBits = 0; //the received manchester 32 bits
 unsigned char rx_numMB = 0;  //the number of received manchester bits
 unsigned char rx_curByte = 0;
 
 unsigned char rx_maxBytes = 2;
-unsigned char rx_data[2];
-
-boolean rx_debug = false;
+unsigned char rx_default_data[2];
+unsigned char* rx_data = rx_default_data;
 
 void AddManBit(unsigned int *manBits, unsigned char *numMB, 
                unsigned char *curByte, unsigned char *data, 
@@ -70,130 +74,151 @@ void AddManBit(unsigned int *manBits, unsigned char *numMB,
   }
 }
 
+void rx_setup()
+{  
+  //ATMega328 timer 2 (http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf)
+  TCCR2A = _BV(WGM21); // reset counter on match
+  TCCR2B = _BV(CS22) | _BV(CS21); //counts every 16 usec with 16 Mhz clock
+  OCR2A = 4; // interrupt every 5 counts (0->4)
+  TIMSK2 = _BV(OCIE2A);
+  TCNT2 = 0;
+}
+
+void rx_begin()
+{
+  rx_maxBytes = 2;
+  rx_data = rx_default_data;
+  rx_mode = RX_MODE_PRE;
+}
+
+void rx_begin(unsigned char maxBytes, unsigned char *data)
+{
+  rx_maxBytes = maxBytes;
+  rx_data = data;
+  rx_mode = RX_MODE_PRE;  
+}
+
+void rx_pause()
+{
+  rx_mode = RX_MODE_IDLE;
+}
+
+boolean rx_gotmsg()
+{
+  return (rx_mode == RX_MODE_MSG);
+}
+
+unsigned int rx_getmsg()
+{
+  return (((int)rx_data[0]) << 8) | (int)rx_data[1];
+}
+
+void rx_getmsg(unsigned char *rcvdBytes, unsigned char **data)
+{
+  *rcvdBytes = rx_curByte;
+  *data = rx_data;
+}
+
 ISR(TIMER2_COMPA_vect)
 {
-  // Increment counter  
-  rx_count += 5;
+  if (rx_mode < 3)
+  {
+    // Increment counter  
+    rx_count += 5;
+    
+    // Check for value change
+    rx_sample = digitalRead(RxPin);
+    boolean transition = (rx_sample != rx_last_sample);
   
-  // Check for value change
-  rx_sample = digitalRead(RxPin);
-  boolean transition = (rx_sample != rx_last_sample);
-
-  if (rx_mode == 0)
-  {
-    // Wait for first transition to HIGH
-    if (transition && (rx_sample == 1))
+    if (rx_mode == RX_MODE_PRE)
     {
-      rx_count = 0;
-      rx_sync_count = 0;
-      rx_mode = 1;
-    }
-  }
-  else if (rx_mode == 1)
-  {
-    // Initial sync block
-    if (transition)
-    {
-      if(((rx_sync_count < 20) || (rx_sample == 0)) && 
-         ((rx_count < MinCount) || (rx_count > MaxCount)))
+      // Wait for first transition to HIGH
+      if (transition && (rx_sample == 1))
       {
-        // Transition was too slow/fast
-        rx_mode = 0;
-      }
-      else if((rx_sample == 1) &&
-              ((rx_count < MinCount) || (rx_count > MaxLongCount)))
-      {
-        // Transition was too slow/fast
-        rx_mode = 0;        
-      }
-      else
-      {
-        rx_sync_count++;
-        
-        if((rx_sample == 1) && 
-           (rx_sync_count >= 20) && 
-           (rx_count > MinLongCount))
-        {
-          // We have seen at least 10 regular transitions
-          // Lock sequence ends with 01
-          // This is TX as HI,LO,LO,HI
-          // We have seen a long low - we are now locked!
-          rx_mode = 2;
-          rx_manBits = 0;
-          rx_numMB = 0;
-          rx_curByte = 0;
-        }
-        else if (rx_sync_count >= 32)
-        {
-          rx_mode = 0;
-        }
         rx_count = 0;
+        rx_sync_count = 0;
+        rx_mode = RX_MODE_SYNC;
       }
     }
-  }
-  else if (rx_mode == 2)
-  {
-    // Receive data
-    if (transition)
+    else if (rx_mode == RX_MODE_SYNC)
     {
-      if((rx_count < MinCount) ||
-         (rx_count > MaxLongCount))
+      // Initial sync block
+      if (transition)
       {
-        // Interference - give up
-        rx_mode = 0;
-      }
-      else
-      {        
-        if(rx_count > MinLongCount)  // was the previous bit a double bit?
+        if(((rx_sync_count < 20) || (rx_last_sample == 1)) && 
+           ((rx_count < MinCount) || (rx_count > MaxCount)))
         {
-          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 1);
-        }        
-        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 0);
-        
-        rx_mode = 3;     
-        rx_count = 0;
-      }
-    }
-  }
-  else if (rx_mode == 3)
-  {
-    // Receive data
-    if (transition)
-    {
-      if((rx_count < MinCount) ||
-         (rx_count > MaxLongCount))
-      {
-        // Interference - give up
-        rx_mode = 0;
-      }
-      else
-      {
-        if(rx_count > MinLongCount)  // was the previous bit a double bit?
-        {
-          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 0);
+          // First 20 bits and all 1 bits are expected to be regular
+          // Transition was too slow/fast
+          rx_mode = RX_MODE_PRE;
         }
-        if (rx_curByte >= rx_maxBytes)
+        else if((rx_last_sample == 0) &&
+                ((rx_count < MinCount) || (rx_count > MaxLongCount)))
         {
-          rx_mode = 4;
+          // 0 bits after the 20th bit are allowed to be a double bit
+          // Transition was too slow/fast
+          rx_mode = RX_MODE_PRE;
         }
         else
         {
-          // Add the current bit
-          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 1);
+          rx_sync_count++;
           
+          if((rx_last_sample == 0) && 
+             (rx_sync_count >= 20) && 
+             (rx_count > MinLongCount))
+          {
+            // We have seen at least 10 regular transitions
+            // Lock sequence ends with unencoded bits 01
+            // This is encoded and TX as HI,LO,LO,HI
+            // We have seen a long low - we are now locked!
+            rx_mode = RX_MODE_DATA;
+            rx_manBits = 0;
+            rx_numMB = 0;
+            rx_curByte = 0;
+          }
+          else if (rx_sync_count >= 32)
+          {
+            rx_mode = RX_MODE_PRE;
+          }
           rx_count = 0;
-          rx_mode = 2;
-        }        
+        }
       }
     }
+    else if (rx_mode == RX_MODE_DATA)
+    {
+      // Receive data
+      if (transition)
+      {
+        if((rx_count < MinCount) ||
+           (rx_count > MaxLongCount))
+        {
+          // Interference - give up
+          rx_mode = RX_MODE_PRE;
+        }
+        else
+        {
+          if(rx_count > MinLongCount)  // was the previous bit a double bit?
+          {
+            AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
+          }
+          if ((rx_sample == 1) &&
+              (rx_curByte >= rx_maxBytes))
+          {
+            rx_mode = RX_MODE_MSG;
+          }
+          else
+          {
+            // Add the current bit
+            AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_sample);          
+            rx_count = 0;
+          }        
+        }
+      }
+    }
+    
+    // Get ready for next loop
+    rx_last_sample = rx_sample;
   }
-  else if (rx_mode == 4)
-  {
-    // Got total message - do nothing
-  }
-  
-  // Get ready for next loop
-  rx_last_sample = rx_sample;
 }
 
 const int MSG_SIZE = 3;
@@ -201,16 +226,12 @@ const int MAX_NODE_ID = 31;
 unsigned int msgNum[MAX_NODE_ID];
 const int MAX_MSG_NUM = 31;
 
-void setup() 
+void setup()
 {   
  Serial.begin(9600);
-  
- //ATMega328 timer 2 (http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf)
- TCCR2A = _BV(WGM21); // reset counter on match
- TCCR2B = _BV(CS22) | _BV(CS21); //counts every 16 usec with 16 Mhz clock
- OCR2A = 4; // interrupt every 5 counts
- TIMSK2 = _BV(OCIE2A);
- TCNT2 = 0;
+ 
+ rx_setup();
+ rx_begin();
  
  // Zero msg num array
  for (int i = 0; i < MAX_NODE_ID; i++)
@@ -222,79 +243,32 @@ void setup()
 unsigned int xoData;
 unsigned int xoNodeID;
 
-char buffer[50];
-PString mystring(buffer, sizeof(buffer));
-
 void loop() 
 {
-  /*Serial.print("Sync: ");
-  Serial.print(rx_sync_count);
-  Serial.print(", Max_Sync: ");
-  Serial.print(rx_max_sync_count);
-  Serial.print(", Mode: ");
-  Serial.print(rx_mode);
-  Serial.print(", Max_Mode: ");
-  Serial.print(rx_max_mode);
-  Serial.print(", numMB: ");
-  Serial.print(rx_numMB);
-  Serial.print(", curByte: ");
-  Serial.print(rx_curByte);
-  Serial.println();*/
-  if (rx_mode == 4)
-  {
-    unsigned int data = (((int)rx_data[0]) << 8) | (int)rx_data[1];
-//    unsigned int data2 = (((int)rx_data[2]) << 8) | (int)rx_data[3];
-    rx_mode = 0;
-    Serial.print("Received: ");
-    Serial.print(data);
-//    Serial.print(" , ");
-//    Serial.print(data2);
-    Serial.println();
-/*    Serial.print("Got: ");
-    mystring.begin();
-    mystring.print(data, BIN);
-    int len = mystring.length();
-    mystring.begin();
-    for (int i = 0; i < (16 - len);i++)
-    {
-      mystring.print("0");
-    }
-    mystring.print(data, BIN);
-    Serial.print(mystring);
-    Serial.print(" ");
-    mystring.begin();
-    mystring.print(data2, BIN);
-    len = mystring.length();
-    mystring.begin();
-    for (int i = 0; i < (16 - len);i++)
-    {
-      mystring.print("0");
-    }
-    mystring.print(data2, BIN);
-    Serial.print(mystring);
-    Serial.println();*/
-  }
-  /*readMsg();
+  readMsg();
   Serial.print("Read data from node ");
   Serial.print(xoNodeID);
   Serial.print(": ");
-  Serial.println(xoData);*/
+  Serial.println(xoData);
+
 }
 
+unsigned int inData[MSG_SIZE];
 void readMsg()
 {
-  unsigned int inData[MSG_SIZE];
   int offset = -1;
   int count = 0;
-  while(1)
-  {          
-    offset++;
-    if (offset >= MSG_SIZE) offset = 0;
-        
-    if (rx_mode == 3)
+  while(true)
+  {
+    // No idea why this delay is needed
+    delay(1);
+    if (rx_gotmsg())
     {
-      unsigned int data = (((int)rx_data[0]) << 8) | (int)rx_data[1];
-      rx_mode = 0;
+      offset++;
+      if (offset >= MSG_SIZE) offset = 0;
+      
+      unsigned int data = rx_getmsg();
+      rx_begin();
       
       if (count < MSG_SIZE) count++;
       
@@ -334,7 +308,7 @@ void readMsg()
         xoData = msgData[1];
         return;
       }
-    }
+    }    
   }
 }
 
