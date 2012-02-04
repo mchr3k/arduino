@@ -1,5 +1,5 @@
 #include <avr/interrupt.h>
-#include <MANCHESTER.h>
+`#include <MANCHESTER.h>
 
 const int MSG_SIZE = 3;
 const int MAX_NODE_ID = 31;
@@ -10,6 +10,7 @@ void setup()
 {   
  Serial.begin(9600);
  
+ MANRX_SetRxPin(4);
  MANRX_SetupReceive();
  MANRX_BeginReceive();
  
