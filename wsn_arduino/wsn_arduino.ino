@@ -1,4 +1,5 @@
-#include "MANCHESTER.h"
+#include <PString.h>
+#include <MANCHESTER.h>
 
 #define RxPin 4
 
@@ -23,13 +24,31 @@ void setup()
 unsigned int xoData;
 unsigned int xoNodeID;
 
+char buffer[50];
+PString mystring(buffer, sizeof(buffer));
+
 void loop() 
 {
+  unsigned int data = MANCHESTER.Receive();
+    Serial.print("Got: ");
+    mystring.begin();
+    mystring.print(data, BIN);
+    int len = mystring.length();
+    mystring.begin();
+    for (int i = 0; i < (16 - len);i++)
+    {
+      mystring.print("0");
+    }
+    mystring.print(data, BIN);
+    Serial.print(mystring);
+    Serial.println();
+  /*
   readMsg();
   Serial.print("Read data from node ");
   Serial.print(xoNodeID);
   Serial.print(": ");
   Serial.println(xoData);  
+  */
 }
 
 void readMsg()

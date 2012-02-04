@@ -1,3 +1,4 @@
+#include <PString.h>
 #include <avr/interrupt.h>
 
 #define RxPin 4
@@ -31,9 +32,7 @@ static int rx_sample = 0;
 static int rx_last_sample = 0;
 static uint8_t rx_count = 0;
 static uint8_t rx_sync_count = 0;
-static uint8_t rx_max_sync_count = 0;
 static uint8_t rx_mode = 0;
-static uint8_t rx_max_mode = 0;
 
 unsigned int rx_manBits = 0; //the received manchester 32 bits
 unsigned char rx_numMB = 0;  //the number of received manchester bits
@@ -80,15 +79,11 @@ ISR(TIMER2_COMPA_vect)
   rx_sample = digitalRead(RxPin);
   boolean transition = (rx_sample != rx_last_sample);
 
-  // Record the max mode we entered
-  if (rx_max_mode < rx_mode) rx_max_mode = rx_mode;
-  if (rx_max_sync_count < rx_sync_count) rx_max_sync_count = rx_sync_count;
-  
   if (rx_mode == 0)
   {
     // Wait for first transition to HIGH
     if (transition && (rx_sample == 1))
-    {        
+    {
       rx_count = 0;
       rx_sync_count = 0;
       rx_mode = 1;
@@ -149,22 +144,50 @@ ISR(TIMER2_COMPA_vect)
       }
       else
       {        
-        if(rx_count > MinLongCount)  //is this a double bit
+        if(rx_count > MinLongCount)  // was the previous bit a double bit?
         {
-          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
-        }
-        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
+          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 1);
+        }        
+        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 0);
         
-        if (rx_curByte >= rx_maxBytes)
-        {
-          rx_mode = 3;
-        }
-        
+        rx_mode = 3;     
         rx_count = 0;
       }
     }
   }
   else if (rx_mode == 3)
+  {
+    // Receive data
+    if (transition)
+    {
+      if((rx_count < MinCount) ||
+         (rx_count > MaxLongCount))
+      {
+        // Interference - give up
+        rx_mode = 0;
+      }
+      else
+      {
+        if(rx_count > MinLongCount)  // was the previous bit a double bit?
+        {
+          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 0);
+        }
+        if (rx_curByte >= rx_maxBytes)
+        {
+          rx_mode = 4;
+        }
+        else
+        {
+          // Add the current bit
+          AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, 1);
+          
+          rx_count = 0;
+          rx_mode = 2;
+        }        
+      }
+    }
+  }
+  else if (rx_mode == 4)
   {
     // Got total message - do nothing
   }
@@ -185,7 +208,7 @@ void setup()
  //ATMega328 timer 2 (http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf)
  TCCR2A = _BV(WGM21); // reset counter on match
  TCCR2B = _BV(CS22) | _BV(CS21); //counts every 16 usec with 16 Mhz clock
- OCR2A = 5; // interrupt every 5 counts
+ OCR2A = 4; // interrupt every 5 counts
  TIMSK2 = _BV(OCIE2A);
  TCNT2 = 0;
  
@@ -199,10 +222,12 @@ void setup()
 unsigned int xoData;
 unsigned int xoNodeID;
 
+char buffer[50];
+PString mystring(buffer, sizeof(buffer));
+
 void loop() 
 {
-  delay(1000);
-  Serial.print("Sync: ");
+  /*Serial.print("Sync: ");
   Serial.print(rx_sync_count);
   Serial.print(", Max_Sync: ");
   Serial.print(rx_max_sync_count);
@@ -214,14 +239,40 @@ void loop()
   Serial.print(rx_numMB);
   Serial.print(", curByte: ");
   Serial.print(rx_curByte);
-  Serial.println();
-  if (rx_mode == 3)
+  Serial.println();*/
+  if (rx_mode == 4)
   {
     unsigned int data = (((int)rx_data[0]) << 8) | (int)rx_data[1];
+//    unsigned int data2 = (((int)rx_data[2]) << 8) | (int)rx_data[3];
     rx_mode = 0;
     Serial.print("Received: ");
     Serial.print(data);
+//    Serial.print(" , ");
+//    Serial.print(data2);
     Serial.println();
+/*    Serial.print("Got: ");
+    mystring.begin();
+    mystring.print(data, BIN);
+    int len = mystring.length();
+    mystring.begin();
+    for (int i = 0; i < (16 - len);i++)
+    {
+      mystring.print("0");
+    }
+    mystring.print(data, BIN);
+    Serial.print(mystring);
+    Serial.print(" ");
+    mystring.begin();
+    mystring.print(data2, BIN);
+    len = mystring.length();
+    mystring.begin();
+    for (int i = 0; i < (16 - len);i++)
+    {
+      mystring.print("0");
+    }
+    mystring.print(data2, BIN);
+    Serial.print(mystring);
+    Serial.println();*/
   }
   /*readMsg();
   Serial.print("Read data from node ");
