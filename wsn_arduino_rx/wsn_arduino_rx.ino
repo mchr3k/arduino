@@ -31,15 +31,15 @@ static int rx_sample = 0;
 static int rx_last_sample = 0;
 static uint8_t rx_count = 0;
 static uint8_t rx_sync_count = 0;
+static uint8_t rx_max_sync_count = 0;
 static uint8_t rx_mode = 0;
 static uint8_t rx_max_mode = 0;
 
 unsigned int rx_manBits = 0; //the received manchester 32 bits
 unsigned char rx_numMB = 0;  //the number of received manchester bits
-boolean rx_startbit = true;  //remember to ignore the start bit is a one
+unsigned char rx_curByte = 0;
 
 unsigned char rx_maxBytes = 2;
-unsigned char rx_curByte = 0;
 unsigned char rx_data[2];
 
 boolean rx_debug = false;
@@ -82,6 +82,7 @@ ISR(TIMER2_COMPA_vect)
 
   // Record the max mode we entered
   if (rx_max_mode < rx_mode) rx_max_mode = rx_mode;
+  if (rx_max_sync_count < rx_sync_count) rx_max_sync_count = rx_sync_count;
   
   if (rx_mode == 0)
   {
@@ -98,13 +99,13 @@ ISR(TIMER2_COMPA_vect)
     // Initial sync block
     if (transition)
     {
-      if(((rx_sync_count < 20) || (rx_sample == 1)) && 
+      if(((rx_sync_count < 20) || (rx_sample == 0)) && 
          ((rx_count < MinCount) || (rx_count > MaxCount)))
       {
         // Transition was too slow/fast
         rx_mode = 0;
       }
-      else if((rx_sample == 0) &&
+      else if((rx_sample == 1) &&
               ((rx_count < MinCount) || (rx_count > MaxLongCount)))
       {
         // Transition was too slow/fast
@@ -126,7 +127,6 @@ ISR(TIMER2_COMPA_vect)
           rx_manBits = 0;
           rx_numMB = 0;
           rx_curByte = 0;
-          rx_startbit = true;
         }
         else if (rx_sync_count >= 32)
         {
@@ -148,16 +148,16 @@ ISR(TIMER2_COMPA_vect)
         rx_mode = 0;
       }
       else
-      {
-        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
+      {        
         if(rx_count > MinLongCount)  //is this a double bit
         {
           AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
         }
+        AddManBit(&rx_manBits, &rx_numMB, &rx_curByte, rx_data, rx_last_sample);
         
         if (rx_curByte >= rx_maxBytes)
         {
-          rx_mode == 3;
+          rx_mode = 3;
         }
         
         rx_count = 0;
@@ -183,7 +183,7 @@ void setup()
  Serial.begin(9600);
   
  //ATMega328 timer 2 (http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf)
- TCCR2A = _BC(WGM21); // reset counter on match
+ TCCR2A = _BV(WGM21); // reset counter on match
  TCCR2B = _BV(CS22) | _BV(CS21); //counts every 16 usec with 16 Mhz clock
  OCR2A = 5; // interrupt every 5 counts
  TIMSK2 = _BV(OCIE2A);
@@ -204,11 +204,25 @@ void loop()
   delay(1000);
   Serial.print("Sync: ");
   Serial.print(rx_sync_count);
+  Serial.print(", Max_Sync: ");
+  Serial.print(rx_max_sync_count);
   Serial.print(", Mode: ");
   Serial.print(rx_mode);
   Serial.print(", Max_Mode: ");
-  Serial.print(rx_max_mode);  
+  Serial.print(rx_max_mode);
+  Serial.print(", numMB: ");
+  Serial.print(rx_numMB);
+  Serial.print(", curByte: ");
+  Serial.print(rx_curByte);
   Serial.println();
+  if (rx_mode == 3)
+  {
+    unsigned int data = (((int)rx_data[0]) << 8) | (int)rx_data[1];
+    rx_mode = 0;
+    Serial.print("Received: ");
+    Serial.print(data);
+    Serial.println();
+  }
   /*readMsg();
   Serial.print("Read data from node ");
   Serial.print(xoNodeID);
