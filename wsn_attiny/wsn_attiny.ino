@@ -48,7 +48,7 @@ void loop()
 {
   Tdata +=1;
   sendMsg(Tdata);
-  //deepsleep();
+  deepsleep();
 }//end of loop
 
 void deepsleep()
@@ -59,7 +59,7 @@ void deepsleep()
   pinMode(3, INPUT);
   pinMode(4, INPUT);
   // deep sleep for 2 * 4 seconds = 8 seconds
-  ATTINYWATCHDOG.sleep(1);  
+  ATTINYWATCHDOG.sleep(2);
   // Set pins to output after sleep
   pinMode(3, OUTPUT);
   pinMode(4, OUTPUT);
@@ -91,12 +91,12 @@ void sendMsg(unsigned int data)
   if (readingNum >= 31) readingNum = 0;
   
   doSendMsg(data, readingNum);
-  /*
+  
   livesleep(500 + random(500));
   doSendMsg(data, readingNum);
   
   livesleep(500 + random(500));
-  doSendMsg(data, readingNum);*/
+  doSendMsg(data, readingNum);
 }
 
 void doSendMsg(unsigned int data, unsigned int msgNum)

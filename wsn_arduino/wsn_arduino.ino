@@ -1,18 +1,17 @@
-#include <PString.h>
+#include <avr/interrupt.h>
 #include <MANCHESTER.h>
-
-#define RxPin 4
 
 const int MSG_SIZE = 3;
 const int MAX_NODE_ID = 31;
 unsigned int msgNum[MAX_NODE_ID];
 const int MAX_MSG_NUM = 31;
 
-void setup() 
-{ 
- MANCHESTER.SetRxPin(RxPin); //user sets rx pin default 4
- MANCHESTER.SetTimeOut(1000); //user sets timeout default blocks
- Serial.begin(9600);	// Debugging only
+void setup()
+{   
+ Serial.begin(9600);
+ 
+ MANRX_SetupReceive();
+ MANRX_BeginReceive();
  
  // Zero msg num array
  for (int i = 0; i < MAX_NODE_ID; i++)
@@ -24,32 +23,32 @@ void setup()
 unsigned int xoData;
 unsigned int xoNodeID;
 
-char buffer[50];
-PString mystring(buffer, sizeof(buffer));
-
 void loop() 
 {
   readMsg();
   Serial.print("Read data from node ");
   Serial.print(xoNodeID);
   Serial.print(": ");
-  Serial.println(xoData);  
+  Serial.println(xoData);
 }
 
+unsigned int inData[MSG_SIZE];
 void readMsg()
 {
-
-  unsigned int inData[MSG_SIZE];
   int offset = -1;
   int count = 0;
-  while(1)
-  {          
-    offset++;
-    if (offset >= MSG_SIZE) offset = 0;
-    
-    unsigned int data = MANCHESTER.Receive();
-    if (!MANCHESTER.ReceivedTimeout())
+  while(true)
+  {
+    // No idea why this delay is needed
+    delay(1);
+    if (MANRX_ReceiveComplete())
     {
+      offset++;
+      if (offset >= MSG_SIZE) offset = 0;
+      
+      unsigned int data = MANRX_GetMessage();
+      MANRX_BeginReceive();
+      
       if (count < MSG_SIZE) count++;
       
       inData[offset] = data;
@@ -88,7 +87,7 @@ void readMsg()
         xoData = msgData[1];
         return;
       }
-    }
+    }    
   }
 }
 
