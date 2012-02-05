@@ -1,80 +1,59 @@
-#include <avr/interrupt.h>
-
-// ATTiny85:
-//             u
-//   Reset (1)    (8) VCC
-// P3 (A3) (2)    (7) P2 (A1)
-// P4 (A2) (3)    (6) P1 (PWM)
-//     GND (4)    (5) P0 (PWM)
-
-#define TIMER_CLOCK_FREQ 8000000.0
+#define LedPin 2
 
 void setup() 
 {
-  // We don't use pins 0-2 so set these to INPUT
-  pinMode(0, INPUT);
-  pinMode(1, INPUT);
-  pinMode(2, INPUT);
+  // Setup LedPin
+  pinMode(LedPin, OUTPUT);
   
-  // Pins 3, 4 are used for output
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  
-  // Pin 3 is used as a controlled VCC while we are awake
-  digitalWrite(3, HIGH);
-  
-  // Preset pin 4 to low
-  digitalWrite(4, LOW);
-  
-  // Timer clock: 8MHz / 8 = 1MHz
-  // 200 tics at 1MHz = 200uS/interrupt
-  TCCR1 = _BV(CTC1) | _BV(CS13) | _BV(CS12) | _BV(CS11); 
-  // Enable timer interrupts
-  TIMSK |= _BV(OCIE1A);  
-  OCR1A = 102;
-}//end of setup
+  // We will use Timer 2 on the ATmega328.
+  // See section 17 of http://www.atmel.com/dyn/resources/prod_documents/doc8161.pdf
+  // Section 17.11 contains details about the registers
+  // which need to be setup.
+  //
+  // Table 17-8 in the datasheet describes how to set the
+  // counter mode. To use CTC we must set _BV(WGM21)
+  // in register TCCR2A.
+  TCCR2A = _BV(WGM21);
+  // Table 17-9 shows the available clock prescale values.
+  // We will use the highest available: 1/1024. This
+  // requires that we set 4 bits.
+  // This gives a clock of 16MHz/1024 = 15625Hz
+  TCCR2B = _BV(CS22) | _BV(CS21) | _BV(CS20);
+  // We want an interrupt once per second. This would
+  // require a compare value of 15625. However OCR2A
+  // is only an 8 bit register which can hold a max value
+  // of 255.
+  //
+  // The highest factor of 15625 lower than 255 is 125
+  // so we will use that. 15625 = 125 * 125 so settings
+  // OCR2A to 125 will generate 125 interrupts per second.
+  // We will need to manually count how many times
+  // we have been interrupted and flash our LED every time
+  // we are interrupted for the 125th time.
+  OCR2A = 125;
+  // Finally we need to enable our interrupt.
+  TIMSK2 = _BV(OCIE2A);
+}
 
 unsigned long count = 0;
 int ledon = 0;
-
-/*
-8MHz => 1000000 / 8000000 = 0.125uS/tic
-10Hz => 1000000 / 10 => 100000uS/tic
-100000 / 0.125 = 800000 tics
-
-8MHz/256 => 1000000 / (8000000 / 256) = 32uS/tic
-10Hz => 1000000 / 10 => 100000uS/tic
-100000 / 32 = 3125 tics
-
-8MHz/8192 => 1000000 / (8000000 / 8192) = 976.5625uS/tic
-10Hz => 1000000 / 10 => 100000uS/tic
-100000 / 976.5625 = 102.4 tics
-
-8MHz/256 => 1000000 / (8000000 / 256) = 32uS/tic
-1000Hz => 1000000 / 1000 => 1000uS/tic
-1000 / 32 = 31.25 tics
-
-8MHz/128 => 1000000 / (8000000 / 128) = 16uS/tic
-1000Hz => 1000000 / 1000 => 1000uS/tic
-1000 / 16 = 62.5 tics
-
-8MHz/64 => 1000000 / (8000000 / 128) = 8uS/tic
-1000Hz => 1000000 / 1000 => 1000uS/tic
-1000 / 8 = 125 tics
-
-*/
-
-SIGNAL(TIMER1_COMPA_vect)
+SIGNAL(TIMER2_COMPA_vect)
 {
-  if (ledon == 0)
+  // We expect 125 interrupts a second
+  count++;
+  if (count > 125)
   {
-    digitalWrite(4, HIGH);
-    ledon = 1;
-  }
-  else
-  {
-    digitalWrite(4, LOW);
-    ledon = 0;
+    count = 0;
+    if (ledon == 0)
+    {
+      digitalWrite(LedPin, HIGH);
+      ledon = 1;
+    }
+    else
+    {
+      digitalWrite(LedPin, LOW);
+      ledon = 0;
+    }
   }
 }
 
