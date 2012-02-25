@@ -48,34 +48,18 @@ void loop()
 {
   Tdata +=1;
   sendMsg(Tdata);
-  deepsleep();
+  deepsleep(5);
 }//end of loop
 
-void deepsleep()
+void deepsleep(unsigned int multiple)
 {
   // Turn our VCC pin off
   digitalWrite(3, LOW);
   // Set pins to input before sleep
   pinMode(3, INPUT);
   pinMode(4, INPUT);
-  // deep sleep for 2 * 4 seconds = 8 seconds
-  ATTINYWATCHDOG.sleep(2);
-  // Set pins to output after sleep
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  // Pin 3 is used as a controlled VCC while we are awake
-  digitalWrite(3, HIGH);
-}
-
-void livesleep(unsigned long time)
-{
-  // Turn our VCC pin off
-  digitalWrite(3, LOW);
-  // Set output pins to input
-  pinMode(3, INPUT);
-  pinMode(4, INPUT);
-  // delay for the requested time
-  delay(time);  
+  // deep sleep for multiple * 4 seconds
+  ATTINYWATCHDOG.sleep(multiple);
   // Set pins to output after sleep
   pinMode(3, OUTPUT);
   pinMode(4, OUTPUT);
@@ -92,10 +76,10 @@ void sendMsg(unsigned int data)
   
   doSendMsg(data, readingNum);
   
-  livesleep(500 + random(500));
+  deepsleep(random(1,2));
   doSendMsg(data, readingNum);
   
-  livesleep(500 + random(500));
+  deepsleep(random(1,2));
   doSendMsg(data, readingNum);
 }
 

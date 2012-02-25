@@ -1,5 +1,5 @@
 #include <avr/interrupt.h>
-`#include <MANCHESTER.h>
+#include <MANCHESTER.h>
 
 const int MSG_SIZE = 3;
 const int MAX_NODE_ID = 31;
