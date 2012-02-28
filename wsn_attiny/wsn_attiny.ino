@@ -9,6 +9,9 @@
 // P3 (A3) (2)    (7) P2 (A1)
 // P4 (A2) (3)    (6) P1 (PWM)
 //     GND (4)    (5) P0 (PWM)
+//
+// Temp calibration formula:
+// V_calib = V_base * ((T_ref + 50) / (T_base + 50))
 
 #define TmpPin 1 // Analog pin 1 - digital pin 2
 #define TmpDPin 2
@@ -45,35 +48,26 @@ unsigned int testdata = 1;
 
 void loop() 
 {
-  unsigned int data[10];
   waketmp();
-  
-  int i;
-  for (i = 0; i < 10; i++)
-  {
-    delay(10);
-    data[i] = (unsigned int)getTemp(TmpPin);
-  }
+  delay(10);
+  unsigned int data = (unsigned int)(getTemp(TmpPin) * 10.0);    
   sleeptmp();
   
   waketx();
-  for (i = 0; i < 10; i++)
-  {
-    delay(10);
-    sendMsg(data[i]);
-  }
-  sendMsg(9999);
+  delay(10);
+  sendMsg(data);
   sleeptx();
   
-  //testdata++;
-  //sendMsg(testdata);
-  //deepsleep(2);
+  deepsleep(2);
 }
 
 float getTemp(int pin)
 {
   int sensorValue = analogRead(TmpPin);
-  float milliVolts = sensorValue * 1.07421875;//(1100 / 1024);
+  // Base VRef: 1100
+  // Calibrated VRef: 1028
+  // Constant: 1028 / 1024
+  float milliVolts = sensorValue * 1.00390625;
   float tempC = (milliVolts - 500) / 10;
   return tempC;
 }
@@ -131,10 +125,10 @@ void sendMsg(unsigned int data)
   
   doSendMsg(data, readingNum);
   
-  //deepsleep(random(1,2));
+  deepsleep(random(1,2));
   doSendMsg(data, readingNum);
   
-  //deepsleep(random(1,2));
+  deepsleep(random(1,2));
   doSendMsg(data, readingNum);
 }
 
