@@ -10,10 +10,13 @@
 // P4 (A2) (3)    (6) P1 (PWM)
 //     GND (4)    (5) P0 (PWM)
 
-#define TxPin 4  //the digital pin to use to transmit data
-const int NODE_ID = 1;
+#define TmpPin 1 // Analog pin 1 - digital pin 2
+#define TmpDPin 2
+#define TmpPwr 1
+#define TxPin 4
+#define TxPwr 3
 
-unsigned int Tdata = 0;  //the 16 bits to send
+const int NODE_ID = 1;
 
 void setup() 
 {
@@ -31,40 +34,92 @@ void setup()
   // ATTINYWATCHDOG turns off ADC before sleep and
   // restores it when we wake up
   
-  // We don't use pins 0-2 so set these to INPUT
-  pinMode(0, INPUT);
-  pinMode(1, INPUT);
-  pinMode(2, INPUT);
+  // Select the 1.1V internal ref voltage
+  analogReference(INTERNAL);
   
-  // Pins 3, 4 are used for output
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  
-  // Pin 3 is used as a controlled VCC while we are awake
-  digitalWrite(3, HIGH);
+  // We don't use pin 0 so set this to INPUT
+  pinMode(0, INPUT);  
 }//end of setup
+
+unsigned int testdata = 1;
 
 void loop() 
 {
-  Tdata +=1;
-  sendMsg(Tdata);
-  deepsleep(5);
-}//end of loop
+  unsigned int data[10];
+  waketmp();
+  
+  int i;
+  for (i = 0; i < 10; i++)
+  {
+    delay(10);
+    data[i] = (unsigned int)getTemp(TmpPin);
+  }
+  sleeptmp();
+  
+  waketx();
+  for (i = 0; i < 10; i++)
+  {
+    delay(10);
+    sendMsg(data[i]);
+  }
+  sendMsg(9999);
+  sleeptx();
+  
+  //testdata++;
+  //sendMsg(testdata);
+  //deepsleep(2);
+}
+
+float getTemp(int pin)
+{
+  int sensorValue = analogRead(TmpPin);
+  float milliVolts = sensorValue * 1.07421875;//(1100 / 1024);
+  float tempC = (milliVolts - 500) / 10;
+  return tempC;
+}
+
+void sleeptx()
+{
+  // Pins 3, 4 are used for Tx
+  pinMode(TxPin, INPUT);
+  pinMode(TxPwr, INPUT);
+}
+
+void sleeptmp()
+{
+  // Pins 1, 2 are used for TMP
+  pinMode(TmpDPin, INPUT);
+  pinMode(TmpPwr, INPUT);  
+}
+
+void waketx()
+{
+  // Pins 3, 4 are used for Tx
+  pinMode(TxPin, OUTPUT);
+  pinMode(TxPwr, OUTPUT);
+  
+  // Power up the TX and TMP
+  digitalWrite(TxPwr, HIGH);
+}
+
+void waketmp()
+{
+  // Pins 1, 2 are used for TMP
+  pinMode(TmpDPin, INPUT);
+  pinMode(TmpPwr, OUTPUT);
+  
+  // Power up the TX and TMP
+  digitalWrite(TmpPwr, HIGH);
+}
 
 void deepsleep(unsigned int multiple)
-{
-  // Turn our VCC pin off
-  digitalWrite(3, LOW);
-  // Set pins to input before sleep
-  pinMode(3, INPUT);
-  pinMode(4, INPUT);
+{  
+  sleeptx();
+  sleeptmp();
   // deep sleep for multiple * 4 seconds
   ATTINYWATCHDOG.sleep(multiple);
-  // Set pins to output after sleep
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  // Pin 3 is used as a controlled VCC while we are awake
-  digitalWrite(3, HIGH);
+  waketx();
+  waketmp();
 }
 
 unsigned int readingNum = 1;
@@ -76,28 +131,32 @@ void sendMsg(unsigned int data)
   
   doSendMsg(data, readingNum);
   
-  deepsleep(random(1,2));
+  //deepsleep(random(1,2));
   doSendMsg(data, readingNum);
   
-  deepsleep(random(1,2));
+  //deepsleep(random(1,2));
   doSendMsg(data, readingNum);
 }
 
-void doSendMsg(unsigned int data, unsigned int msgNum)
+void doSendMsg(unsigned int xiData, unsigned char xiMsgNum)
 {       
   // Send a message with the following format
-  // 6 bits pre-amble
   // 5 bit node ID
   // 5 bit reading number
+  // 6 bit unused
   // 16 bit data
-  // 16 bit data (repeated)
-  //
-  // This is a total of 3x unsigned ints     
-  unsigned int preamble = (0b010101 << 10);
-  unsigned int nodeID = ((NODE_ID & 0b11111) << 5);
-  unsigned int firstPacket = preamble | nodeID | (msgNum & 0b11111);
+  // 8 bit checksum
   
-  MANCHESTER.Transmit(firstPacket);
-  MANCHESTER.Transmit(data);
-  MANCHESTER.Transmit(data);
+  // This is a total of 5 unsigned chars
+  unsigned char databuf[5];
+  unsigned char nodeID = (NODE_ID & 0b11111);
+  unsigned char msgNum = (xiMsgNum  & 0b11111);  
+  
+  databuf[0] = (nodeID << 3) | (msgNum >> 2);
+  databuf[1] = ((msgNum & 0b00000011) << 6);
+  databuf[2] = ((0xFF00 & xiData) >> 8);
+  databuf[3] = (0x00FF & xiData);
+  databuf[4] = databuf[0] | databuf[1] | databuf[2] | databuf[3];
+  
+  MANCHESTER.TransmitBytes(5, databuf);
 }
