@@ -58,7 +58,7 @@ void loop()
   sendMsg(data);
   sleeptx();
   
-  deepsleep(2);
+  deepsleep(70); // 4 minutes, 40 seconds
 }
 
 float getTemp(int pin)
