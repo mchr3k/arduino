@@ -1,5 +1,6 @@
 #include <avr/interrupt.h>
 #include <MANCHESTER.h>
+#include <SerialReader.h>
 
 const int MAX_NODE_ID = 31;
 unsigned int msgNum[MAX_NODE_ID];
@@ -17,12 +18,9 @@ void setup()
  MANRX_SetupReceive();
  MANRX_BeginReceiveBytes(5, currentBuf);
  
- // Zero msg num array
  for (int i = 0; i < MAX_NODE_ID; i++)
- {
-   msgNum[i] = 0;
- }
-}//end of setup
+ { msgNum[i] = 0; } 
+}
 
 unsigned int xoData;
 unsigned int xoNodeID;

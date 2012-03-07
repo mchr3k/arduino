@@ -1,6 +1,7 @@
-#include "StringReader.h"
+#define SERIALREAD_DEBUG
+#include <SerialReader.h>
 
-StringReader StrReader;
+SerialReader SerReader;
 
 // Buffer which we read data into
 const int STR_DATA_LEN = 50;
@@ -48,7 +49,7 @@ void recordTempData()
     while (nowTime < nextReadingTime)
     {
       if (ledOn && (nowTime > ledOffTime)) { digitalWrite(13, LOW); ledOn = false; }      
-      if (StrReader.readString(stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
+      if (SerReader.readString(stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
       delay(100);
       nowTime = millis();
     }
