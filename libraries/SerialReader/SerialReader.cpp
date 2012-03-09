@@ -33,14 +33,6 @@ int SerialReader::readString(char* stringData, int stringDataLen)
       break;
     }
   }
-
-#ifdef SERIALREAD_DEBUG
-  if (strIndex > 0)
-  {
-    Serial.print("Read: ");
-    Serial.println(stringData);
-  }
-#endif
   
   return strIndex;
 }

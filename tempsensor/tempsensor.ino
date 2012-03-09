@@ -1,4 +1,3 @@
-#define SERIALREAD_DEBUG
 #include <SerialReader.h>
 
 SerialReader SerReader;
@@ -49,7 +48,13 @@ void recordTempData()
     while (nowTime < nextReadingTime)
     {
       if (ledOn && (nowTime > ledOffTime)) { digitalWrite(13, LOW); ledOn = false; }      
-      if (SerReader.readString(stringData, STR_DATA_LEN) > 0) { loopBreak = true; break; }
+      if (SerReader.readString(stringData, STR_DATA_LEN) > 0) 
+      { 
+        Serial.print("Read: ");
+        Serial.println(stringData);
+        loopBreak = true; 
+        break; 
+      }
       delay(100);
       nowTime = millis();
     }

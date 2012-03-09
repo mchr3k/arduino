@@ -10,12 +10,12 @@ typedef struct
   // Time of 12 readings per hour
   unsigned long times[12];
   // count of readings: 0-11 (init'd to -1)
-  char lastindex;
+  byte lastindex;
   // last msg num: 0-31 (init'd to -1)
-  char lastmsgnum;
+  byte lastmsgnum;
 } NodeData;
 
-const int MAX_NODE_ID = 31;
+const int MAX_NODE_ID = 2;
 NodeData nodes[MAX_NODE_ID];
 
 unsigned char databufA[5];
@@ -32,8 +32,8 @@ void setup()
  
  for (int i = 0; i < MAX_NODE_ID; i++)
  { 
-   nodes[i].lastindex = -1;
-   nodes[i].lastmsgnum = -1;
+   nodes[i].lastindex = 255;
+   nodes[i].lastmsgnum = 255;
  }
 }
 
@@ -44,35 +44,78 @@ char stringData[STR_DATA_LEN];
 
 void loop() 
 {
+  recordReceivedData();
   if (SerReader.readString(stringData, STR_DATA_LEN) > 0)
   {
     processCommand();
   }
-  recordReceivedData();
 }
+
+boolean debug_live = false;
+boolean debug_msgnums = false;
 
 void processCommand()
 {
-  for (int i = 0; i < MAX_NODE_ID; i++)
+  Serial.print("== received: ");
+  Serial.println(stringData);
+  
+  if (strcmp(stringData, "debug_live_true") == 0)
   {
-    if (nodes[i].lastindex < 0)
+    debug_live = true;
+    Serial.println("== debug_live: enabled");
+  }
+  else if (strcmp(stringData, "debug_live_false") == 0)
+  {
+    debug_live = false;
+    Serial.println("== debug_live: disabled");
+  }
+  else if (strcmp(stringData, "debug_msgnums_true") == 0)
+  {
+    debug_msgnums = true;
+    Serial.println("== debug_msgnums: enabled");
+  }
+  else if (strcmp(stringData, "debug_msgnums_false") == 0)
+  {
+    debug_msgnums = false;
+    Serial.println("== debug_msgnums: disabled");
+  }
+  else
+  {
+    for (int i = 0; i < MAX_NODE_ID; i++)
     {
-      Serial.print("No data from node ID: ");
-      Serial.println(i);
-    }
-    else
-    {
-      Serial.print("Read data from node ");
-      Serial.print(i);
-      Serial.print(": ");
-
-      char index = nodes[i].lastindex;
-      unsigned int reading = nodes[i].readings[index];
-      float temp = ((float)reading) / 10.0;
-
-      Serial.println(temp);
-    }
-  }  
+      if (nodes[i].lastindex == 255)
+      {
+        Serial.print("== node: ");
+        Serial.println(i);
+        Serial.println("no_data");
+      }
+      else
+      {
+        Serial.print("== node:");
+        Serial.println(i);
+  
+        byte index = nodes[i].lastindex;
+        
+        for (int j = 0; j <= index; j++)
+        {
+          unsigned long time = nodes[i].times[j];
+          unsigned int reading = nodes[i].readings[j];
+          float temp = ((float)reading) / 10.0;
+          Serial.print(temp);
+          Serial.print(",");
+          Serial.print(time);
+          if (j < index)
+          {
+            Serial.print(",");
+          }
+          else
+          {
+            Serial.println("");
+          }
+        } // end reading loop
+      } // end node data output
+    } // end node loop
+  } // end all node output
 }
 
 void recordReceivedData()
@@ -102,15 +145,54 @@ void recordReceivedData()
     // 8 bit checksum
     
     // This is a total of 5 unsigned chars
-    char nodeID = (char)((msgData[0] & (0b11111 << 3)) >> 3);
-    char thisMsgNum = (char)(((msgData[0] & 0b111) << 3) | 
+    byte nodeID = (byte)((msgData[0] & (0b11111 << 3)) >> 3);
+    byte thisMsgNum = (byte)(((msgData[0] & 0b111) << 2) | 
                             ((msgData[1] & 0b11000000) >> 6));      
     unsigned char checksum = msgData[0] | msgData[1] | 
                              msgData[2] | msgData[3];
     // Ignore data which fails the checksum
     if (checksum != msgData[4]) return;
     // Ignore duplicates
-    if (nodes[nodeID].lastmsgnum == thisMsgNum) return;
+    if (nodes[nodeID].lastmsgnum == thisMsgNum)
+    {
+      if (debug_msgnums)
+      {
+        Serial.print("== debug_msgnums retransmit from node: ");
+        Serial.println((int)nodeID);
+      }
+      return;
+    }
+    
+    if (debug_msgnums)
+    {
+      byte lastnum = nodes[nodeID].lastmsgnum;
+      
+      if (lastnum == 255)
+      {
+        Serial.print("== debug_msgnums first msgnum from node: ");
+        Serial.println((int)nodeID);
+      }
+      else
+      {
+        byte expectednum = lastnum++;
+        expectednum++;
+        if (expectednum >= 32)
+        {
+          expectednum = 0;
+        }
+  
+        if (expectednum != thisMsgNum)
+        {
+          Serial.print("== debug_msgnums unexpected msgnum from node: ");
+          Serial.println((int)nodeID);
+          Serial.print("expected: ");
+          Serial.println((int)expectednum);
+          Serial.print("received: ");
+          Serial.println((int)thisMsgNum);
+        }
+      }
+    }
+    
     nodes[nodeID].lastmsgnum = thisMsgNum;
     // Record reading
     nodes[nodeID].lastindex++;   
@@ -118,9 +200,20 @@ void recordReceivedData()
     {
       nodes[nodeID].lastindex = 0;
     }
-    char index = nodes[nodeID].lastindex;
+    byte index = nodes[nodeID].lastindex;
     unsigned int reading = (msgData[2] << 8) | msgData[3];
+    unsigned long time = millis();
     nodes[nodeID].readings[index] = reading;
-    nodes[nodeID].times[index] = millis();
+    nodes[nodeID].times[index] = time;
+
+    if (debug_live)
+    {
+      Serial.print("== debug_live reading from node: ");
+      Serial.println((int)nodeID);
+      float temp = ((float)reading) / 10.0;
+      Serial.print(temp);
+      Serial.print(",");
+      Serial.println(time);
+    }
   }
 }
