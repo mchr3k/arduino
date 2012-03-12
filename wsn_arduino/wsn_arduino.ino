@@ -1,6 +1,18 @@
+#include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 #include <MANCHESTER.h>
 #include <SerialReader.h>
+#include <SD.h>
+
+const prog_uchar startupHelp1Message[] PROGMEM  = {"Hold  [learn] at power on to display stored cards."};
+
+void PROGMEMprint(const prog_uchar str[])
+{
+  char c;
+  if(!str) return;
+  while((c = pgm_read_byte(str++)))
+    Serial.print((char)c);
+}
 
 typedef struct
 {
@@ -15,26 +27,53 @@ typedef struct
   byte lastmsgnum;
 } NodeData;
 
+// Per node data
 const int MAX_NODE_ID = 2;
 NodeData nodes[MAX_NODE_ID];
 
+// Receive buffers used for RF message reception
 unsigned char databufA[5];
 unsigned char databufB[5];
 unsigned char* currentBuf = databufA;
+
+// The configured time offset
+unsigned long timeoffset = 0;
+
+// SD vars
+const int chipSelect = 10;
+File root;
 
 void setup()
 {
  Serial.begin(9600);
  
+ // Start receiving data
  MANRX_SetRxPin(4);
  MANRX_SetupReceive();
- MANRX_BeginReceiveBytes(5, currentBuf);
  
+ // Prepare data structures
  for (int i = 0; i < MAX_NODE_ID; i++)
  { 
    nodes[i].lastindex = 255;
    nodes[i].lastmsgnum = 255;
  }
+ 
+ // make sure that the default chip select pin is set to
+ // output, even if you don't use it:
+ pinMode(10, OUTPUT);
+ 
+ // see if the card is present and can be initialized:
+ if (!SD.begin(chipSelect)) {
+   Serial.println("CardFail");
+   // don't do anything more:
+   return;
+ }
+ 
+ Serial.println("CardInit"); 
+ root = SD.open("/");
+ Serial.println("GotRoot");
+ 
+ PROGMEMprint(startupHelp1Message);
 }
 
 // State for reading from the Serial port
@@ -44,78 +83,165 @@ char stringData[STR_DATA_LEN];
 
 void loop() 
 {
-  recordReceivedData();
+  //recordReceivedData();
+  //recordTestData();
   if (SerReader.readString(stringData, STR_DATA_LEN) > 0)
   {
     processCommand();
   }
 }
 
-boolean debug_live = false;
-boolean debug_msgnums = false;
+boolean debug_live = true;
+boolean debug_msgnums = true;
+boolean debug_files = true;
 
 void processCommand()
 {
-  Serial.print("== received: ");
+  Serial.print("== rcv: ");
   Serial.println(stringData);
   
-  if (strcmp(stringData, "debug_live_true") == 0)
+  if (strcmp(stringData, "dbg_live_t") == 0)
   {
     debug_live = true;
-    Serial.println("== debug_live: enabled");
+    Serial.println("== dbg_live: t");
   }
-  else if (strcmp(stringData, "debug_live_false") == 0)
+  else if (strcmp(stringData, "dbg_live_f") == 0)
   {
     debug_live = false;
-    Serial.println("== debug_live: disabled");
+    Serial.println("== dbg_live: f");
   }
-  else if (strcmp(stringData, "debug_msgnums_true") == 0)
+  else if (strcmp(stringData, "dbg_msgs_t") == 0)
   {
     debug_msgnums = true;
-    Serial.println("== debug_msgnums: enabled");
+    Serial.println("== dbg_msgs: t");
   }
-  else if (strcmp(stringData, "debug_msgnums_false") == 0)
+  else if (strcmp(stringData, "dbg_msgs_f") == 0)
   {
     debug_msgnums = false;
-    Serial.println("== debug_msgnums: disabled");
+    Serial.println("== dbg_msgs: f");
+  }
+  else if (strcmp(stringData, "dbg_fls_t") == 0)
+  {
+    debug_files = true;
+    Serial.println("== dbg_fls: r");
+  }
+  else if (strcmp(stringData, "dbg_fls_f") == 0)
+  {
+    debug_files = false;
+    Serial.println("== dbg_fls: f");
+  }
+  else if (strncmp(stringData, "set_time_", 9) == 0)
+  {
+    unsigned long realreftime = (unsigned long)atol((stringData + 9));
+    unsigned long localreftime = millis();
+    
+    // Setting time for the first time
+    if (timeoffset == 0)
+    {
+      MANRX_BeginReceiveBytes(5, currentBuf);
+    }
+    
+    timeoffset = (realreftime - localreftime);
+    
+    Serial.println("== set_time:");
+    Serial.print(" - real   : ");
+    Serial.println(realreftime);
+    Serial.print(" - local  : ");
+    Serial.println(localreftime);
+    Serial.print(" - offset : ");
+    Serial.println(timeoffset);
+  }
+  else if (strcmp(stringData, "ls") == 0)
+  {
+    // list all files in the card with date and size
+    Serial.println("== ");
+    root = SD.open("/");
+    printDirectory(root, 0);
+    Serial.println("== ");
   }
   else
   {
-    for (int i = 0; i < MAX_NODE_ID; i++)
+    if (timeoffset == 0)
     {
-      if (nodes[i].lastindex == 255)
-      {
-        Serial.print("== node: ");
-        Serial.println(i);
-        Serial.println("no_data");
-      }
-      else
-      {
-        Serial.print("== node:");
-        Serial.println(i);
-  
-        byte index = nodes[i].lastindex;
-        
-        for (int j = 0; j <= index; j++)
-        {
-          unsigned long time = nodes[i].times[j];
-          unsigned int reading = nodes[i].readings[j];
-          float temp = ((float)reading) / 10.0;
-          Serial.print(temp);
-          Serial.print(",");
-          Serial.print(time);
-          if (j < index)
-          {
-            Serial.print(",");
-          }
-          else
-          {
-            Serial.println("");
-          }
-        } // end reading loop
-      } // end node data output
-    } // end node loop
+      Serial.println("time_offset: not_set");
+    }
+    else
+    {
+      printAllNodes();
+    }
   } // end all node output
+}
+
+void printDirectory(File dir, int numTabs) 
+{
+   while(true) 
+   {     
+     File entry =  dir.openNextFile();
+     if (! entry) 
+     {
+       // no more files
+       break;
+     }
+     for (uint8_t i=0; i<numTabs; i++) {
+       Serial.print('\t');
+     }
+     Serial.print(entry.name());
+     if (entry.isDirectory()) 
+     {
+       Serial.println("/");
+       printDirectory(entry, numTabs+1);
+     } 
+     else 
+     {
+       // files have sizes, directories do not
+       Serial.print("\t\t");
+       Serial.println(entry.size(), DEC);
+     }
+   }
+}
+
+void printAllNodes()
+{
+  for (int i = 0; i < MAX_NODE_ID; i++)
+  {
+    Serial.print("== node_data: ");
+    Serial.print("Node ID: ");
+    Serial.println(i);
+    if (nodes[i].lastindex == 255)
+    {
+      Serial.println("no_data");
+    }
+    else
+    {
+      Serial.println("time, temp, ");
+  
+      byte index = nodes[i].lastindex;      
+      for (int j = 0; j <= index; j++)
+      {
+        unsigned long time = nodes[i].times[j];
+        unsigned int reading = nodes[i].readings[j];
+        float temp = ((float)reading) / 10.0;
+        Serial.print(time);
+        Serial.print(",");
+        Serial.println(temp);
+      } // end reading loop
+    } // end node data output
+  } // end node loop
+}
+
+unsigned int counter = 0;
+unsigned long lasttime = 0;
+
+void recordTestData()
+{
+  unsigned long elapsed = millis() - lasttime;
+  if (elapsed > 1000)
+  {    
+    lasttime = millis();
+    counter++;
+    
+    addData(0, 0, counter, millis());
+  }
 }
 
 void recordReceivedData()
@@ -157,7 +283,7 @@ void recordReceivedData()
     {
       if (debug_msgnums)
       {
-        Serial.print("== debug_msgnums retransmit from node: ");
+        Serial.print("== dbg_msgs: retrans, node: ");
         Serial.println((int)nodeID);
       }
       return;
@@ -169,7 +295,7 @@ void recordReceivedData()
       
       if (lastnum == 255)
       {
-        Serial.print("== debug_msgnums first msgnum from node: ");
+        Serial.print("== dbg_msgs 1st msg, node: ");
         Serial.println((int)nodeID);
       }
       else
@@ -183,37 +309,114 @@ void recordReceivedData()
   
         if (expectednum != thisMsgNum)
         {
-          Serial.print("== debug_msgnums unexpected msgnum from node: ");
+          Serial.print("== dbg_msgs err msgnum, node: ");
           Serial.println((int)nodeID);
-          Serial.print("expected: ");
+          Serial.print("exp'd: ");
           Serial.println((int)expectednum);
-          Serial.print("received: ");
+          Serial.print("recv'd: ");
           Serial.println((int)thisMsgNum);
         }
       }
     }
     
-    nodes[nodeID].lastmsgnum = thisMsgNum;
-    // Record reading
-    nodes[nodeID].lastindex++;   
-    if (nodes[nodeID].lastindex > 11)
-    {
-      nodes[nodeID].lastindex = 0;
-    }
-    byte index = nodes[nodeID].lastindex;
     unsigned int reading = (msgData[2] << 8) | msgData[3];
-    unsigned long time = millis();
-    nodes[nodeID].readings[index] = reading;
-    nodes[nodeID].times[index] = time;
-
+    unsigned long time = millis() + timeoffset;
+    
     if (debug_live)
     {
-      Serial.print("== debug_live reading from node: ");
+      Serial.print("== dbg_live reading, node: ");
       Serial.println((int)nodeID);
       float temp = ((float)reading) / 10.0;
       Serial.print(temp);
       Serial.print(",");
       Serial.println(time);
     }
+    
+    // Add data reading
+    addData(nodeID, thisMsgNum, reading, time);
+    
+    if (nodes[nodeID].lastindex >= 11)
+    {
+      // Write data to file
+      writeNodeFile(nodeID);
+      
+      // Prepare for new data
+      nodes[nodeID].lastindex = 0;
+    }
   }
+}
+
+void addData(byte nodeID, byte thisMsgNum, 
+             unsigned int reading,
+             unsigned long time)
+{
+  nodes[nodeID].lastmsgnum = thisMsgNum;
+  nodes[nodeID].lastindex++;  
+  byte index = nodes[nodeID].lastindex;
+  nodes[nodeID].readings[index] = reading;
+  nodes[nodeID].times[index] = time;
+  
+  if (nodes[nodeID].lastindex >= 11)
+  {
+    // Write data to file
+    writeNodeFile(nodeID);
+    
+    // Prepare for new data
+    nodes[nodeID].lastindex = 0;
+  }
+}
+
+void writeNodeFile(byte nodeID)
+{
+  // the logging file
+  File logfile;
+  
+  // create a new file
+  char filename[] = "00000000.CSV";
+  
+  // first two chars are the node ID
+  sprintf(&filename[0], "%02d", (int)nodeID);
+  
+  // next 6 chars are a log ID. We expect 1
+  // log file per hour so 6 chars allows 999999
+  // log files. 24/day gives 114 years of log files.
+  for (int i = 0; i < 1000000; i++) 
+  {
+    sprintf(&filename[2], "%06d", i);
+
+    Serial.print("TestFile: ");
+    Serial.println(filename);    
+    if (!SD.exists(filename)) 
+    {
+      // only open a new file if it doesn't exist
+      logfile = SD.open(filename, FILE_WRITE); 
+      break;  // leave the loop!
+    }
+  }
+  
+  if (debug_files)
+  {
+    Serial.print("WriteFile: ");
+    Serial.println(filename);
+  }
+  
+  // Select data to write
+  NodeData data = nodes[nodeID];
+  logfile.print("Node ID: ");
+  logfile.println((int)nodeID);
+  logfile.println("time, temp, ");
+  
+  byte index = data.lastindex;
+  for (int j = 0; j <= index; j++)
+  {
+    unsigned long time = data.times[j];
+    unsigned int reading = data.readings[j];
+    float temp = ((float)reading) / 10.0;
+    logfile.print(time);
+    logfile.print(",");
+    logfile.println(temp);
+  } // end writing loop
+  
+  logfile.flush();
+  logfile.close();
 }
