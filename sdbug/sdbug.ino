@@ -22,6 +22,7 @@ const int chipSelect = 10;
 void setup()
 {
   Serial.begin(9600);
+  WsnPrintln("***reset***");
 
   // make sure that the default chip select pin is set to
   // output, even if you don't use it:
