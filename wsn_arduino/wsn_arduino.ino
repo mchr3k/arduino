@@ -4,14 +4,18 @@
 #include <SerialReader.h>
 #include <SD.h>
 
-const prog_uchar startupHelp1Message[] PROGMEM  = {"Hold  [learn] at power on to display stored cards."};
+#define WsnPrint(x) WSNSerialPrint_P(PSTR(x))
+#define WsnPrintln(x) WSNSerialPrintln_P(PSTR(x))
 
-void PROGMEMprint(const prog_uchar str[])
+static NOINLINE void WSNSerialPrint_P(PGM_P str) 
 {
-  char c;
-  if(!str) return;
-  while((c = pgm_read_byte(str++)))
-    Serial.print((char)c);
+  for (uint8_t c; (c = pgm_read_byte(str)); str++) Serial.write(c);
+}
+
+static NOINLINE void WSNSerialPrintln_P(PGM_P str) 
+{
+  WSNSerialPrint_P(str);
+  Serial.println();
 }
 
 typedef struct
@@ -25,7 +29,8 @@ typedef struct
   byte lastindex;
   // last msg num: 0-31 (init'd to -1)
   byte lastmsgnum;
-} NodeData;
+} 
+NodeData;
 
 // Per node data
 const int MAX_NODE_ID = 2;
@@ -41,39 +46,31 @@ unsigned long timeoffset = 0;
 
 // SD vars
 const int chipSelect = 10;
-File root;
 
 void setup()
 {
- Serial.begin(9600);
- 
- // Start receiving data
- MANRX_SetRxPin(4);
- MANRX_SetupReceive();
- 
- // Prepare data structures
- for (int i = 0; i < MAX_NODE_ID; i++)
- { 
-   nodes[i].lastindex = 255;
-   nodes[i].lastmsgnum = 255;
- }
- 
- // make sure that the default chip select pin is set to
- // output, even if you don't use it:
- pinMode(10, OUTPUT);
- 
- // see if the card is present and can be initialized:
- if (!SD.begin(chipSelect)) {
-   Serial.println("CardFail");
-   // don't do anything more:
-   return;
- }
- 
- Serial.println("CardInit"); 
- root = SD.open("/");
- Serial.println("GotRoot");
- 
- PROGMEMprint(startupHelp1Message);
+  Serial.begin(9600);
+
+  // Start receiving data
+  MANRX_SetRxPin(4);
+  MANRX_SetupReceive();
+
+  // Prepare data structures
+  for (int i = 0; i < MAX_NODE_ID; i++)
+  { 
+    nodes[i].lastindex = 255;
+    nodes[i].lastmsgnum = 255;
+  }
+
+  // make sure that the default chip select pin is set to
+  // output, even if you don't use it:
+  pinMode(10, OUTPUT);
+
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) 
+  {
+    WsnPrintln("CardFail");
+  }
 }
 
 // State for reading from the Serial port
@@ -97,124 +94,179 @@ boolean debug_files = true;
 
 void processCommand()
 {
-  Serial.print("== rcv: ");
+  WsnPrint("== rcv: ");
   Serial.println(stringData);
-  
-  if (strcmp(stringData, "dbg_live_t") == 0)
+
+  if (strcmp(stringData, "help") == 0)
+  {
+    WsnPrintln("== commands");
+    WsnPrintln("help");
+    WsnPrintln("status");
+    WsnPrintln("dbg_live_t/f");
+    WsnPrintln("dbg_msgs_t/f");
+    WsnPrintln("dbg_fls_t/f");
+    WsnPrintln("dbg_ram");
+    WsnPrintln("dbg_newfile");
+    WsnPrintln("set_time_<n>");
+    WsnPrintln("ls");
+    WsnPrintln("rm *");
+    WsnPrintln("else: show latest data");
+  }
+  else if (strcmp(stringData, "status") == 0)
+  {
+    WsnPrintln("== status");
+    WsnPrint("dbg_live: ");
+    Serial.println(debug_live);
+    WsnPrint("dbg_msgs: ");
+    Serial.println(debug_msgnums);
+    WsnPrint("dbg_fls: ");
+    Serial.println(debug_files);
+  }
+  else if (strcmp(stringData, "dbg_live_t") == 0)
   {
     debug_live = true;
-    Serial.println("== dbg_live: t");
+    WsnPrintln("== dbg_live: t");
   }
   else if (strcmp(stringData, "dbg_live_f") == 0)
   {
     debug_live = false;
-    Serial.println("== dbg_live: f");
+    WsnPrintln("== dbg_live: f");
   }
   else if (strcmp(stringData, "dbg_msgs_t") == 0)
   {
     debug_msgnums = true;
-    Serial.println("== dbg_msgs: t");
+    WsnPrintln("== dbg_msgs: t");
   }
   else if (strcmp(stringData, "dbg_msgs_f") == 0)
   {
     debug_msgnums = false;
-    Serial.println("== dbg_msgs: f");
+    WsnPrintln("== dbg_msgs: f");
   }
   else if (strcmp(stringData, "dbg_fls_t") == 0)
   {
     debug_files = true;
-    Serial.println("== dbg_fls: r");
+    WsnPrintln("== dbg_fls: r");
   }
   else if (strcmp(stringData, "dbg_fls_f") == 0)
   {
     debug_files = false;
-    Serial.println("== dbg_fls: f");
+    WsnPrintln("== dbg_fls: f");
+  }
+  else if (strcmp(stringData, "dbg_ram") == 0)
+  {
+    WsnPrint("Free RAM: ");
+    Serial.println(FreeRam());
   }
   else if (strncmp(stringData, "set_time_", 9) == 0)
   {
     unsigned long realreftime = (unsigned long)atol((stringData + 9));
     unsigned long localreftime = millis();
-    
+
     // Setting time for the first time
     if (timeoffset == 0)
     {
       MANRX_BeginReceiveBytes(5, currentBuf);
     }
-    
+
     timeoffset = (realreftime - localreftime);
-    
-    Serial.println("== set_time:");
-    Serial.print(" - real   : ");
+
+    WsnPrintln("== set_time:");
+    WsnPrint(" - real   : ");
     Serial.println(realreftime);
-    Serial.print(" - local  : ");
+    WsnPrint(" - local  : ");
     Serial.println(localreftime);
-    Serial.print(" - offset : ");
+    WsnPrint(" - offset : ");
     Serial.println(timeoffset);
   }
   else if (strcmp(stringData, "ls") == 0)
   {
     // list all files in the card with date and size
-    Serial.println("== ");
-    root = SD.open("/");
-    printDirectory(root, 0);
-    Serial.println("== ");
+    WsnPrintln("== printing files in /");
+    printRoot();
+  }
+  else if (strcmp(stringData, "dbg_newfile") == 0)
+  {
+    WsnPrintln("== creating file...");
+    writeNodeFile(0);
+  }
+  else if (strcmp(stringData, "rm *") == 0)
+  {
+    // list all files in the card with date and size
+    WsnPrintln("== deleting all files in /");
+    deleteAllFilesFromRoot();
   }
   else
   {
     if (timeoffset == 0)
     {
-      Serial.println("time_offset: not_set");
+      WsnPrintln("time_offset: not_set");
     }
     else
     {
       printAllNodes();
     }
-  } // end all node output
+  } // command selection
+  WsnPrintln("== done");
 }
 
-void printDirectory(File dir, int numTabs) 
+void printRoot() 
 {
-   while(true) 
-   {     
-     File entry =  dir.openNextFile();
-     if (! entry) 
-     {
-       // no more files
-       break;
-     }
-     for (uint8_t i=0; i<numTabs; i++) {
-       Serial.print('\t');
-     }
-     Serial.print(entry.name());
-     if (entry.isDirectory()) 
-     {
-       Serial.println("/");
-       printDirectory(entry, numTabs+1);
-     } 
-     else 
-     {
-       // files have sizes, directories do not
-       Serial.print("\t\t");
-       Serial.println(entry.size(), DEC);
-     }
-   }
+  File root = SD.open("/");
+  while(true) 
+  {     
+    File entry = root.openNextFile();
+    if (!entry) 
+    {
+      // no more files
+      break;
+    }
+    Serial.print(entry.name());
+    if (entry.isDirectory()) 
+    {
+      WsnPrintln("/");
+    } 
+    else 
+    {
+      WsnPrint("\t\t");
+      Serial.println(entry.size(), DEC);
+    }
+    entry.close();
+  }
+  root.close();
+}
+
+void deleteAllFilesFromRoot() 
+{
+  File root = SD.open("/");
+  while(true)
+  {
+    File entry = root.openNextFile();
+    if (!entry)
+    {
+      // no more files
+      break;
+    }
+    SD.remove(entry.name());
+    entry.close();
+  }
+  root.close();
 }
 
 void printAllNodes()
 {
   for (int i = 0; i < MAX_NODE_ID; i++)
   {
-    Serial.print("== node_data: ");
-    Serial.print("Node ID: ");
+    WsnPrintln("== node_data: ");
+    WsnPrint("Node ID: ");
     Serial.println(i);
     if (nodes[i].lastindex == 255)
     {
-      Serial.println("no_data");
+      WsnPrintln("no_data");
     }
     else
     {
-      Serial.println("time, temp, ");
-  
+      WsnPrintln("time, temp, ");
+
       byte index = nodes[i].lastindex;      
       for (int j = 0; j <= index; j++)
       {
@@ -222,7 +274,7 @@ void printAllNodes()
         unsigned int reading = nodes[i].readings[j];
         float temp = ((float)reading) / 10.0;
         Serial.print(time);
-        Serial.print(",");
+        WsnPrint(",");
         Serial.println(temp);
       } // end reading loop
     } // end node data output
@@ -235,11 +287,10 @@ unsigned long lasttime = 0;
 void recordTestData()
 {
   unsigned long elapsed = millis() - lasttime;
-  if (elapsed > 1000)
+  if (elapsed > 5000)
   {    
     lasttime = millis();
     counter++;
-    
     addData(0, 0, counter, millis());
   }
 }
@@ -256,12 +307,16 @@ void recordReceivedData()
 
     // Prepare for next msg
     if (currentBuf == databufA)
-    { currentBuf = databufB; }
+    { 
+      currentBuf = databufB; 
+    }
     else
-    { currentBuf = databufA; }
-    
+    { 
+      currentBuf = databufA; 
+    }
+
     MANRX_BeginReceiveBytes(5, currentBuf);
-  
+
     // Check if we have a valid message
     // We expect to receive the following
     // 5 bit node ID
@@ -269,13 +324,13 @@ void recordReceivedData()
     // 6 bit unused
     // 16 bit data
     // 8 bit checksum
-    
+
     // This is a total of 5 unsigned chars
     byte nodeID = (byte)((msgData[0] & (0b11111 << 3)) >> 3);
     byte thisMsgNum = (byte)(((msgData[0] & 0b111) << 2) | 
-                            ((msgData[1] & 0b11000000) >> 6));      
+      ((msgData[1] & 0b11000000) >> 6));      
     unsigned char checksum = msgData[0] | msgData[1] | 
-                             msgData[2] | msgData[3];
+      msgData[2] | msgData[3];
     // Ignore data which fails the checksum
     if (checksum != msgData[4]) return;
     // Ignore duplicates
@@ -283,19 +338,19 @@ void recordReceivedData()
     {
       if (debug_msgnums)
       {
-        Serial.print("== dbg_msgs: retrans, node: ");
+        WsnPrint("== dbg_msgs: retrans, node: ");
         Serial.println((int)nodeID);
       }
       return;
     }
-    
+
     if (debug_msgnums)
     {
       byte lastnum = nodes[nodeID].lastmsgnum;
-      
+
       if (lastnum == 255)
       {
-        Serial.print("== dbg_msgs 1st msg, node: ");
+        WsnPrint("== dbg_msgs 1st msg, node: ");
         Serial.println((int)nodeID);
       }
       else
@@ -306,47 +361,48 @@ void recordReceivedData()
         {
           expectednum = 0;
         }
-  
+
         if (expectednum != thisMsgNum)
         {
-          Serial.print("== dbg_msgs err msgnum, node: ");
+          WsnPrint("== dbg_msgs err msgnum, node: ");
           Serial.println((int)nodeID);
-          Serial.print("exp'd: ");
+          WsnPrint("exp'd: ");
           Serial.println((int)expectednum);
-          Serial.print("recv'd: ");
+          WsnPrint("recv'd: ");
           Serial.println((int)thisMsgNum);
         }
       }
     }
-    
+
     unsigned int reading = (msgData[2] << 8) | msgData[3];
     unsigned long time = millis() + timeoffset;
-    
+
     if (debug_live)
     {
-      Serial.print("== dbg_live reading, node: ");
+      WsnPrint("== dbg_live reading, node: ");
       Serial.println((int)nodeID);
       float temp = ((float)reading) / 10.0;
       Serial.print(temp);
-      Serial.print(",");
+      WsnPrint(",");
       Serial.println(time);
     }
-    
+
     // Add data reading
     addData(nodeID, thisMsgNum, reading, time);
-    
+
     if (nodes[nodeID].lastindex >= 11)
     {
       // Write data to file
       writeNodeFile(nodeID);
-      
+
       // Prepare for new data
       nodes[nodeID].lastindex = 0;
     }
   }
 }
 
-void addData(byte nodeID, byte thisMsgNum, 
+void addData(byte nodeID, 
+             byte thisMsgNum, 
              unsigned int reading,
              unsigned long time)
 {
@@ -355,12 +411,12 @@ void addData(byte nodeID, byte thisMsgNum,
   byte index = nodes[nodeID].lastindex;
   nodes[nodeID].readings[index] = reading;
   nodes[nodeID].times[index] = time;
-  
+
   if (nodes[nodeID].lastindex >= 11)
   {
     // Write data to file
     writeNodeFile(nodeID);
-    
+
     // Prepare for new data
     nodes[nodeID].lastindex = 0;
   }
@@ -370,22 +426,21 @@ void writeNodeFile(byte nodeID)
 {
   // the logging file
   File logfile;
-  
+
   // create a new file
-  char filename[] = "00000000.CSV";
-  
+  char filename[] = "/00000000.CSV";
+
   // first two chars are the node ID
-  sprintf(&filename[0], "%02d", (int)nodeID);
-  
+  sprintf(&filename[1], "%02d", (int)nodeID);
+
   // next 6 chars are a log ID. We expect 1
   // log file per hour so 6 chars allows 999999
   // log files. 24/day gives 114 years of log files.
   for (int i = 0; i < 1000000; i++) 
   {
-    sprintf(&filename[2], "%06d", i);
+    sprintf(&filename[3], "%06d", i);
+    sprintf(&filename[9], ".CSV");
 
-    Serial.print("TestFile: ");
-    Serial.println(filename);    
     if (!SD.exists(filename)) 
     {
       // only open a new file if it doesn't exist
@@ -393,19 +448,19 @@ void writeNodeFile(byte nodeID)
       break;  // leave the loop!
     }
   }
-  
+
   if (debug_files)
   {
-    Serial.print("WriteFile: ");
+    WsnPrint("Writing to file: ");
     Serial.println(filename);
   }
-  
+
   // Select data to write
   NodeData data = nodes[nodeID];
   logfile.print("Node ID: ");
   logfile.println((int)nodeID);
   logfile.println("time, temp, ");
-  
+
   byte index = data.lastindex;
   for (int j = 0; j <= index; j++)
   {
@@ -416,7 +471,6 @@ void writeNodeFile(byte nodeID)
     logfile.print(",");
     logfile.println(temp);
   } // end writing loop
-  
-  logfile.flush();
+
   logfile.close();
 }
