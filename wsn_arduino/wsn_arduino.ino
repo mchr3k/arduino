@@ -8,12 +8,12 @@
 #define WsnPrint(x) WSNSerialPrint_P(PSTR(x))
 #define WsnPrintln(x) WSNSerialPrintln_P(PSTR(x))
 
-static NOINLINE void WSNSerialPrint_P(PGM_P str) 
+static void WSNSerialPrint_P(PGM_P str) 
 {
   for (uint8_t c; (c = pgm_read_byte(str)); str++) Serial.write(c);
 }
 
-static NOINLINE void WSNSerialPrintln_P(PGM_P str) 
+static void WSNSerialPrintln_P(PGM_P str) 
 {
   WSNSerialPrint_P(str);
   Serial.println();
@@ -297,7 +297,7 @@ void deleteFiles(SdBaseFile* root)
         j++;
       }
 
-      if (!file.open(dir, name, O_WRITE)) return;
+      if (!file.open(root, name, O_WRITE)) return;
       if (!file.remove()) error("file.remove failed");
     }
   }
