@@ -1,8 +1,4 @@
 #include <avr/pgmspace.h>
-#include <avr/interrupt.h>
-#include <MANCHESTER.h>
-#include <SerialReader.h>
-#include <SD.h>
 
 #define WsnPrint(x) WSNSerialPrint_P(PSTR(x))
 #define WsnPrintln(x) WSNSerialPrintln_P(PSTR(x))
@@ -17,6 +13,12 @@ static NOINLINE void WSNSerialPrintln_P(PGM_P str)
   WSNSerialPrint_P(str);
   Serial.println();
 }
+
+#include <avr/interrupt.h>
+#include <MANCHESTER.h>
+#include <SerialReader.h>
+#include <SdFat.h>
+#include <SdFatUtil.h>
 
 typedef struct
 {
@@ -46,6 +48,8 @@ unsigned long timeoffset = 0;
 
 // SD vars
 const int chipSelect = 10;
+SdFat sd;
+#define error(s) sd.errorHalt_P(PSTR(s))
 
 void setup()
 {
@@ -67,10 +71,7 @@ void setup()
   pinMode(10, OUTPUT);
 
   // see if the card is present and can be initialized:
-  if (!SD.begin(chipSelect)) 
-  {
-    WsnPrintln("CardFail");
-  }
+  if (!sd.init(SPI_HALF_SPEED)) sd.initErrorHalt();
 }
 
 // State for reading from the Serial port
@@ -182,7 +183,7 @@ void processCommand()
   {
     // list all files in the card with date and size
     WsnPrintln("== printing files in /");
-    printRoot();
+    listFiles(LS_SIZE);
   }
   else if (strcmp(stringData, "dbg_newfile") == 0)
   {
@@ -193,7 +194,7 @@ void processCommand()
   {
     // list all files in the card with date and size
     WsnPrintln("== deleting all files in /");
-    deleteAllFilesFromRoot();
+    deleteFiles(sd.vwd());
   }
   else
   {
@@ -209,47 +210,98 @@ void processCommand()
   WsnPrintln("== done");
 }
 
-void printRoot() 
+void listFiles(uint8_t flags)
 {
-  File root = SD.open("/");
-  while(true) 
-  {     
-    File entry = root.openNextFile();
-    if (!entry) 
+  dir_t p;
+  
+  SdBaseFile* root = sd.vwd();
+  root->rewind();
+  
+  while (root->readDir(&p) > 0) 
+  {
+    // done if past last used entry
+    if (p.name[0] == DIR_NAME_FREE) break;
+ 
+    // skip deleted entry and entries for . and  ..
+    if (p.name[0] == DIR_NAME_DELETED || p.name[0] == '.') continue;
+ 
+    // only list subdirectories and files
+    if (!DIR_IS_FILE_OR_SUBDIR(&p)) continue;
+ 
+    // print file name with possible blank fill
+    for (uint8_t i = 0; i < 11; i++) 
     {
-      // no more files
-      break;
+      if (p.name[i] == ' ') continue;
+      if (i == 8) 
+      {
+        Serial.print('.');
+      }
+      Serial.write(p.name[i]);
     }
-    Serial.print(entry.name());
-    if (entry.isDirectory()) 
+    if (DIR_IS_SUBDIR(&p)) 
     {
-      WsnPrintln("/");
-    } 
-    else 
-    {
-      WsnPrint("\t\t");
-      Serial.println(entry.size(), DEC);
+      Serial.print('/');
     }
-    entry.close();
+ 
+    // print modify date/time if requested
+    if (flags & LS_DATE) 
+    {
+       root->printFatDate(p.lastWriteDate);
+       Serial.print(" ");
+       root->printFatTime(p.lastWriteTime);
+    }
+    
+    // print size if requested
+    if (!DIR_IS_SUBDIR(&p) && (flags & LS_SIZE)) 
+    {
+      Serial.print(" ");
+      Serial.print(p.fileSize);
+    }
+    Serial.println();
   }
-  root.close();
 }
 
-void deleteAllFilesFromRoot() 
+void deleteFiles(SdBaseFile* root) 
 {
-  File root = SD.open("/");
-  while(true)
+  dir_t p;
+  char name[13];
+  SdFile file;
+  
+  root->rewind();
+  
+  while (root->readDir(&p) > 0) 
   {
-    File entry = root.openNextFile();
-    if (!entry)
+    // done if past last used entry
+    if (p.name[0] == DIR_NAME_FREE) break; 
+    // skip deleted entry and entries for . and  ..
+    if (p.name[0] == DIR_NAME_DELETED || p.name[0] == '.') continue;
+    // only list subdirectories and files
+    if (!DIR_IS_FILE_OR_SUBDIR(&p)) continue;
+ 
+    if (DIR_IS_SUBDIR(&p)) 
     {
-      // no more files
-      break;
+      // ignore directory
     }
-    SD.remove(entry.name());
-    entry.close();
+    else
+    {
+      // print file name with possible blank fill
+      uint8_t j = 0;
+      for (uint8_t i = 0; i < 11; i++) 
+      {
+        if (p.name[i] == ' ') continue;
+        if (i == 8) 
+        {
+          sprintf(&name[j], ".");
+          j++;
+        }
+        sprintf(&name[j], "%c", p.name[i]);
+        j++;
+      }
+
+      if (!file.open(dir, name, O_WRITE)) return;
+      if (!file.remove()) error("file.remove failed");
+    }
   }
-  root.close();
 }
 
 void printAllNodes()
@@ -425,7 +477,7 @@ void addData(byte nodeID,
 void writeNodeFile(byte nodeID)
 {
   // the logging file
-  File logfile;
+  SdFile logfile;
 
   // create a new file
   char filename[] = "/00000000.CSV";
@@ -441,10 +493,10 @@ void writeNodeFile(byte nodeID)
     sprintf(&filename[3], "%06d", i);
     sprintf(&filename[9], ".CSV");
 
-    if (!SD.exists(filename)) 
+    if (!sd.vwd()->exists(filename)) 
     {
       // only open a new file if it doesn't exist
-      logfile = SD.open(filename, FILE_WRITE); 
+      logfile.open(filename, O_CREAT | O_EXCL | O_WRITE); 
       break;  // leave the loop!
     }
   }
