@@ -1,4 +1,9 @@
+#include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <MANCHESTER.h>
+#include <SerialReader.h>
+#include <SdFat.h>
+#include <SdFatUtil.h>
 
 #define WsnPrint(x) WSNSerialPrint_P(PSTR(x))
 #define WsnPrintln(x) WSNSerialPrintln_P(PSTR(x))
@@ -13,12 +18,6 @@ static NOINLINE void WSNSerialPrintln_P(PGM_P str)
   WSNSerialPrint_P(str);
   Serial.println();
 }
-
-#include <avr/interrupt.h>
-#include <MANCHESTER.h>
-#include <SerialReader.h>
-#include <SdFat.h>
-#include <SdFatUtil.h>
 
 typedef struct
 {
