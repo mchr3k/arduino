@@ -5,20 +5,6 @@
 #include <SdFat.h>
 #include <SdFatUtil.h>
 
-#define WsnPrint(x) WSNSerialPrint_P(PSTR(x))
-#define WsnPrintln(x) WSNSerialPrintln_P(PSTR(x))
-
-static void WSNSerialPrint_P(PGM_P str) 
-{
-  for (uint8_t c; (c = pgm_read_byte(str)); str++) Serial.write(c);
-}
-
-static void WSNSerialPrintln_P(PGM_P str) 
-{
-  WSNSerialPrint_P(str);
-  Serial.println();
-}
-
 typedef struct
 {
   // 1 reading every 5 minutes
@@ -49,6 +35,7 @@ unsigned long timeoffset = 0;
 const int chipSelect = 10;
 SdFat sd;
 #define error(s) sd.errorHalt_P(PSTR(s))
+int lastfile[MAX_NODE_ID];
 
 void setup()
 {
@@ -63,6 +50,7 @@ void setup()
   { 
     nodes[i].lastindex = 255;
     nodes[i].lastmsgnum = 255;
+    lastfile[i] = 0;
   }
 
   // make sure that the default chip select pin is set to
@@ -80,7 +68,7 @@ char stringData[STR_DATA_LEN];
 
 void loop() 
 {
-  //recordReceivedData();
+  recordReceivedData();
   //recordTestData();
   if (SerReader.readString(stringData, STR_DATA_LEN) > 0)
   {
@@ -94,70 +82,72 @@ boolean debug_files = true;
 
 void processCommand()
 {
-  WsnPrint("== rcv: ");
+  PgmPrint("== rcv: ");
   Serial.println(stringData);
 
-  if (strcmp(stringData, "help") == 0)
+  if (strcmp_P(stringData, PSTR("help")) == 0)
   {
-    WsnPrintln("== commands");
-    WsnPrintln("help");
-    WsnPrintln("status");
-    WsnPrintln("dbg_live_t/f");
-    WsnPrintln("dbg_msgs_t/f");
-    WsnPrintln("dbg_fls_t/f");
-    WsnPrintln("dbg_ram");
-    WsnPrintln("dbg_newfile");
-    WsnPrintln("set_time_<n>");
-    WsnPrintln("ls");
-    WsnPrintln("rm *");
-    WsnPrintln("else: show latest data");
+    PgmPrintln("== commands");
+    PgmPrintln("help");
+    PgmPrintln("status");
+    PgmPrintln("dbg_live_t/f");
+    PgmPrintln("dbg_msgs_t/f");
+    PgmPrintln("dbg_fls_t/f");
+    PgmPrintln("dbg_ram");
+    PgmPrintln("dbg_newfile");
+    PgmPrintln("set_time_<n>");
+    PgmPrintln("ls");
+    PgmPrintln("cat <file>");
+    PgmPrintln("rm <file>");
+    PgmPrintln("rm *");
+    PgmPrintln("else: show latest data");
   }
-  else if (strcmp(stringData, "status") == 0)
+  else if (strcmp_P(stringData, PSTR("status")) == 0)
   {
-    WsnPrintln("== status");
-    WsnPrint("dbg_live: ");
+    PgmPrintln("== status");
+    PgmPrint("dbg_live: ");
     Serial.println(debug_live);
-    WsnPrint("dbg_msgs: ");
+    PgmPrint("dbg_msgs: ");
     Serial.println(debug_msgnums);
-    WsnPrint("dbg_fls: ");
+    PgmPrint("dbg_fls: ");
     Serial.println(debug_files);
   }
-  else if (strcmp(stringData, "dbg_live_t") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_live_t")) == 0)
   {
     debug_live = true;
-    WsnPrintln("== dbg_live: t");
+    PgmPrintln("== dbg_live: t");
   }
-  else if (strcmp(stringData, "dbg_live_f") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_live_f")) == 0)
   {
     debug_live = false;
-    WsnPrintln("== dbg_live: f");
+    PgmPrintln("== dbg_live: f");
   }
-  else if (strcmp(stringData, "dbg_msgs_t") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_msgs_t")) == 0)
   {
     debug_msgnums = true;
-    WsnPrintln("== dbg_msgs: t");
+    PgmPrintln("== dbg_msgs: t");
   }
-  else if (strcmp(stringData, "dbg_msgs_f") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_msgs_f")) == 0)
   {
     debug_msgnums = false;
-    WsnPrintln("== dbg_msgs: f");
+    PgmPrintln("== dbg_msgs: f");
   }
-  else if (strcmp(stringData, "dbg_fls_t") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_fls_t")) == 0)
   {
     debug_files = true;
-    WsnPrintln("== dbg_fls: r");
+    PgmPrintln("== dbg_fls: r");
   }
-  else if (strcmp(stringData, "dbg_fls_f") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_fls_f")) == 0)
   {
     debug_files = false;
-    WsnPrintln("== dbg_fls: f");
+    PgmPrintln("== dbg_fls: f");
   }
-  else if (strcmp(stringData, "dbg_ram") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_ram")) == 0)
   {
-    WsnPrint("Free RAM: ");
+    PgmPrint("Free RAM: ");
     Serial.println(FreeRam());
   }
-  else if (strncmp(stringData, "set_time_", 9) == 0)
+  else if (strncmp_P(stringData, PSTR("set_time_"), 9) == 0)
   {
     unsigned long realreftime = (unsigned long)atol((stringData + 9));
     unsigned long localreftime = millis();
@@ -170,46 +160,58 @@ void processCommand()
 
     timeoffset = (realreftime - localreftime);
 
-    WsnPrintln("== set_time:");
-    WsnPrint(" - real   : ");
+    PgmPrintln("== set_time:");
+    PgmPrint(" - real   : ");
     Serial.println(realreftime);
-    WsnPrint(" - local  : ");
+    PgmPrint(" - local  : ");
     Serial.println(localreftime);
-    WsnPrint(" - offset : ");
+    PgmPrint(" - offset : ");
     Serial.println(timeoffset);
   }
-  else if (strcmp(stringData, "ls") == 0)
+  else if (strcmp_P(stringData, PSTR("ls")) == 0)
   {
     // list all files in the card with date and size
-    WsnPrintln("== printing files in /");
-    listFiles(LS_SIZE);
+    PgmPrintln("== printing files in /");
+    listRootFiles(LS_SIZE);
   }
-  else if (strcmp(stringData, "dbg_newfile") == 0)
+  else if (strcmp_P(stringData, PSTR("dbg_newfile")) == 0)
   {
-    WsnPrintln("== creating file...");
+    PgmPrintln("== creating file...");
     writeNodeFile(0);
   }
-  else if (strcmp(stringData, "rm *") == 0)
+  else if (strncmp_P(stringData, PSTR("cat "), 4) == 0)
   {
-    // list all files in the card with date and size
-    WsnPrintln("== deleting all files in /");
-    deleteFiles(sd.vwd());
+    PgmPrintln("== cat file in /");
+    catFile(&stringData[4]);
+  }
+  else if (strncmp_P(stringData, PSTR("rm "), 3) == 0)
+  {
+    if (stringData[3] == '*')
+    {
+      PgmPrintln("== deleting all files in /");
+      deleteRootFiles();
+    }
+    else
+    {
+      PgmPrintln("== deleting file in /");
+      deleteFile(&stringData[3]);
+    }
   }
   else
   {
     if (timeoffset == 0)
     {
-      WsnPrintln("time_offset: not_set");
+      PgmPrintln("time_offset: not_set");
     }
     else
     {
       printAllNodes();
     }
   } // command selection
-  WsnPrintln("== done");
+  PgmPrintln("== done");
 }
 
-void listFiles(uint8_t flags)
+void listRootFiles(uint8_t flags)
 {
   dir_t p;
   
@@ -260,8 +262,42 @@ void listFiles(uint8_t flags)
   }
 }
 
-void deleteFiles(SdBaseFile* root) 
+void catFile(char* filename)
 {
+  SdBaseFile* root = sd.vwd();
+  SdFile file;
+  
+  if (!file.open(root, filename, O_READ)) return;
+  
+  Serial.print(filename);
+  PgmPrintln(":");
+  // read from the file until there's nothing else in it:
+  int data;
+  while ((data = file.read()) > 0) Serial.write(data);
+  // close the file:
+  file.close();
+}
+
+void deleteFile(char* filename)
+{
+  SdBaseFile* root = sd.vwd();
+  SdFile file;
+  
+  if (!file.open(root, filename, O_WRITE)) return;
+  if (!file.remove()) 
+  {
+    error("file.remove failed");
+  }
+  else
+  {
+    PgmPrint("deleted: ");
+    Serial.println(filename);
+  }
+}
+
+void deleteRootFiles() 
+{
+  SdBaseFile* root = sd.vwd();
   dir_t p;
   char name[13];
   SdFile file;
@@ -307,16 +343,16 @@ void printAllNodes()
 {
   for (int i = 0; i < MAX_NODE_ID; i++)
   {
-    WsnPrintln("== node_data: ");
-    WsnPrint("Node ID: ");
+    PgmPrintln("== node_data: ");
+    PgmPrint("Node ID: ");
     Serial.println(i);
     if (nodes[i].lastindex == 255)
     {
-      WsnPrintln("no_data");
+      PgmPrintln("no_data");
     }
     else
     {
-      WsnPrintln("time, temp, ");
+      PgmPrintln("time, temp, ");
 
       byte index = nodes[i].lastindex;      
       for (int j = 0; j <= index; j++)
@@ -325,7 +361,7 @@ void printAllNodes()
         unsigned int reading = nodes[i].readings[j];
         float temp = ((float)reading) / 10.0;
         Serial.print(time);
-        WsnPrint(",");
+        PgmPrint(",");
         Serial.println(temp);
       } // end reading loop
     } // end node data output
@@ -389,7 +425,7 @@ void recordReceivedData()
     {
       if (debug_msgnums)
       {
-        WsnPrint("== dbg_msgs: retrans, node: ");
+        PgmPrint("== dbg_msgs: retrans, node: ");
         Serial.println((int)nodeID);
       }
       return;
@@ -401,7 +437,7 @@ void recordReceivedData()
 
       if (lastnum == 255)
       {
-        WsnPrint("== dbg_msgs 1st msg, node: ");
+        PgmPrint("== dbg_msgs 1st msg, node: ");
         Serial.println((int)nodeID);
       }
       else
@@ -415,11 +451,11 @@ void recordReceivedData()
 
         if (expectednum != thisMsgNum)
         {
-          WsnPrint("== dbg_msgs err msgnum, node: ");
+          PgmPrint("== dbg_msgs err msgnum, node: ");
           Serial.println((int)nodeID);
-          WsnPrint("exp'd: ");
+          PgmPrint("exp'd: ");
           Serial.println((int)expectednum);
-          WsnPrint("recv'd: ");
+          PgmPrint("recv'd: ");
           Serial.println((int)thisMsgNum);
         }
       }
@@ -430,11 +466,11 @@ void recordReceivedData()
 
     if (debug_live)
     {
-      WsnPrint("== dbg_live reading, node: ");
+      PgmPrint("== dbg_live reading, node: ");
       Serial.println((int)nodeID);
       float temp = ((float)reading) / 10.0;
       Serial.print(temp);
-      WsnPrint(",");
+      PgmPrint(",");
       Serial.println(time);
     }
 
@@ -487,7 +523,7 @@ void writeNodeFile(byte nodeID)
   // next 6 chars are a log ID. We expect 1
   // log file per hour so 6 chars allows 999999
   // log files. 24/day gives 114 years of log files.
-  for (int i = 0; i < 1000000; i++) 
+  for (int i = lastfile[nodeID]; i < 1000000; i++) 
   {
     sprintf(&filename[3], "%06d", i);
     sprintf(&filename[9], ".CSV");
@@ -496,13 +532,14 @@ void writeNodeFile(byte nodeID)
     {
       // only open a new file if it doesn't exist
       logfile.open(filename, O_CREAT | O_EXCL | O_WRITE); 
+      lastfile[nodeID] = i + 1;
       break;  // leave the loop!
     }
   }
 
   if (debug_files)
   {
-    WsnPrint("Writing to file: ");
+    PgmPrint("Writing to file: ");
     Serial.println(filename);
   }
 
