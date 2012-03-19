@@ -84,6 +84,11 @@ namespace wsn_server
                 DownloadButton.Enabled = true; 
             }));
 
+            BeginDownload();
+        }
+
+        private void BeginDownload()
+        {
             TimeSpan t = (DateTime.UtcNow - new DateTime(1970, 1, 1));
             long timestamp = (long)(t.TotalSeconds * (double)1000.0);
 
@@ -110,11 +115,12 @@ namespace wsn_server
             {
                 DownloadButton.Enabled = false;
             }
+            this.CommandTextBox.Focus();
         }
 
         private void DownloadButton_Click(object sender, EventArgs e)
         {
-            ThreadPool.QueueUserWorkItem(new WaitCallback((object x) => { SendCommand("ls", DownloadFiles); }));
+            ThreadPool.QueueUserWorkItem(new WaitCallback((object x) => { BeginDownload(); }));
         }
 
         private void ListFiles(string setTimeResp)
@@ -291,6 +297,30 @@ namespace wsn_server
                     }
                 }));
             }
+        }
+
+        private void SendButton_Click(object sender, EventArgs e)
+        {
+            DoSend();
+        }
+
+        private void DoSend()
+        {
+            string commandstr = CommandTextBox.Text;
+            CommandTextBox.Text = "";
+            ThreadPool.QueueUserWorkItem(new WaitCallback(
+                (object x) =>
+                {
+                    SendCommand(commandstr, NoOp);
+                }));
+        }
+
+        private void NoOp(string value) { }
+
+        private void CommandTextBox_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+                DoSend();
         }
     }
 }
