@@ -76,9 +76,9 @@ void loop()
   }
 }
 
-boolean debug_live = true;
-boolean debug_msgnums = true;
-boolean debug_files = true;
+boolean debug_live = false;
+boolean debug_msgnums = false;
+boolean debug_files = false;
 
 void processCommand()
 {
@@ -135,7 +135,7 @@ void processCommand()
   else if (strcmp_P(stringData, PSTR("dbg_fls_t")) == 0)
   {
     debug_files = true;
-    PgmPrintln("== dbg_fls: r");
+    PgmPrintln("== dbg_fls: t");
   }
   else if (strcmp_P(stringData, PSTR("dbg_fls_f")) == 0)
   {
@@ -362,7 +362,8 @@ void printAllNodes()
         float temp = ((float)reading) / 10.0;
         Serial.print(time);
         PgmPrint(",");
-        Serial.println(temp);
+        Serial.print(temp);
+        PgmPrintln(",");
       } // end reading loop
     } // end node data output
   } // end node loop
@@ -557,7 +558,8 @@ void writeNodeFile(byte nodeID)
     float temp = ((float)reading) / 10.0;
     logfile.print(time);
     logfile.print(",");
-    logfile.println(temp);
+    logfile.print(temp);
+    logfile.println(",");
   } // end writing loop
 
   logfile.close();
