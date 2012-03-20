@@ -12,6 +12,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using ZedGraph;
+using System.Globalization;
 
 namespace wsn_server
 {
@@ -90,7 +91,7 @@ namespace wsn_server
         private void BeginDownload()
         {
             TimeSpan t = (DateTime.UtcNow - new DateTime(1970, 1, 1));
-            long timestamp = (long)(t.TotalSeconds * (double)1000.0);
+            long timestamp = (long)t.TotalSeconds;
 
             SendCommand("set_time_" + timestamp, ListFiles);
         }
@@ -148,7 +149,8 @@ namespace wsn_server
         }
 
         private void ProcessFile(string fileData)
-        {            
+        {
+            ParseData(fileData);
         }
 
         delegate void Callback(string data);
@@ -182,55 +184,54 @@ namespace wsn_server
             }
         }
 
-        private void parseData(string downloadedStr, DateTime dataDate)
+        private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, 
+                                                      DateTimeKind.Utc);
+
+        public static DateTime UnixTimeToDateTime(string text)
         {
-            string[] parts = downloadedStr.Split(new String[] {"------"}, 
-                                                 StringSplitOptions.None);
-            foreach (string part in parts)
+            double seconds = double.Parse(text, CultureInfo.InvariantCulture);
+            return Epoch.AddSeconds(seconds);
+        }
+
+
+        private void ParseData(string downloadedStr)
+        {
+            PointPairList dataList = new PointPairList();
+            string[] lines = downloadedStr.Split(new char[] {'\n'}, 
+                                                 StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
             {
-                Match match = Regex.Match(part,
+                Match match = Regex.Match(line,
                                     @"[\d]+,[\d]+\.[\d]+",
-                                    RegexOptions.Multiline | RegexOptions.IgnorePatternWhitespace);
+                                    RegexOptions.IgnorePatternWhitespace);
                 if (match.Success)
                 {
-                    List<string> dataStrs = new List<string>();
-                    while (match.Success)
-                    {
-                        string matchVal = match.Value;
-                        string[] matchParts = matchVal.Split(new char[] { ',' });
-                        string matchStr = matchParts[1];
-                        dataStrs.Add(matchStr);
-                        match = match.NextMatch();
-                    }
+                    string matchVal = match.Value;
+                    string[] matchParts = matchVal.Split(new char[] { ',' });
 
-                    DateTime tempCaptureTime = DateTime.Now;
+                    string timeStr = matchParts[0];
+                    DateTime dataDateTime = UnixTimeToDateTime(timeStr);                    
+
+                    string tempStr = matchParts[1];
+                    double tempValue = Double.Parse(tempStr);
+
                     double x, y;
-                    PointPairList dataList = new PointPairList();
-                    int ii = 0;
-                    foreach (string data in dataStrs)
-                    {
-                        double tempValue = Double.Parse(data);
-                        TimeSpan span = new TimeSpan(0, // hours 
-                                                     (dataStrs.Count - ii) * 7, // minutes
-                                                     0); // seconds
-                        DateTime dataDateTime = tempCaptureTime.Subtract(span);
-                        XDate graphDataDateTime = new XDate(dataDateTime);
-                        x = (double)graphDataDateTime;
-                        y = tempValue;
-                        dataList.Add(x, y);//, "(" + x + "," + y + ")");
-                        ii++;
-                    }
-                    this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");
-                    this.BeginInvoke(new Action(() => 
-                    {
-                        Graph.GraphPane.CurveList.Clear();
-                        Graph.GraphPane.AddCurve("Temp", dataList, Color.Black, SymbolType.None);
-                        Graph.GraphPane.Title.Text = "Temp";
-                        Graph.AxisChange();
-                        Graph.Refresh();
-                    }));
+                    XDate graphDataDateTime = new XDate(dataDateTime);
+                    x = (double)graphDataDateTime;
+                    y = tempValue;
+                    dataList.Add(x, y);
                 }
             }
+
+            this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");
+            this.BeginInvoke(new Action(() =>
+            {
+                Graph.GraphPane.CurveList.Clear();
+                Graph.GraphPane.AddCurve("Temp", dataList, Color.Black, SymbolType.None);
+                Graph.GraphPane.Title.Text = "Temp";
+                Graph.AxisChange();
+                Graph.Refresh();
+            }));
         }
 
         private void ClearButton_Click(object sender, EventArgs e)
@@ -287,9 +288,9 @@ namespace wsn_server
                         DateTime fileDataDate = DateTime.Parse(fileDataDateStr);
                         string fileDataPart = fileDataParts[1];
 
-                        this.BeginInvoke(new Action(TextOutput.Clear));
+                        /*this.BeginInvoke(new Action(TextOutput.Clear));
                         this.BeginInvoke(new Action<string>(AddMessage), fileDataPart);
-                        parseData(fileDataPart, fileDataDate);
+                        ParseData(fileDataPart, fileDataDate);*/
                     }
                     catch (Exception ex)
                     {

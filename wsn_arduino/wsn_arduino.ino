@@ -150,7 +150,7 @@ void processCommand()
   else if (strncmp_P(stringData, PSTR("set_time_"), 9) == 0)
   {
     unsigned long realreftime = (unsigned long)atol((stringData + 9));
-    unsigned long localreftime = millis();
+    unsigned long localreftime = (millis() / 1000);
 
     // Setting time for the first time
     if (timeoffset == 0)
@@ -374,7 +374,7 @@ unsigned long lasttime = 0;
 
 void recordTestData()
 {
-  unsigned long elapsed = millis() - lasttime;
+  unsigned long elapsed = (millis() / (unsigned long)1000) - lasttime;
   if (elapsed > 5000)
   {    
     lasttime = millis();
