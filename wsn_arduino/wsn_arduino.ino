@@ -48,7 +48,7 @@ void setup()
   // Prepare data structures
   for (int i = 0; i < MAX_NODE_ID; i++)
   { 
-    nodes[i].lastindex = 255;
+    nodes[i].lastindex = 0;
     nodes[i].lastmsgnum = 255;
     lastfile[i] = 0;
   }
@@ -346,7 +346,7 @@ void printAllNodes()
     PgmPrintln("== node_data: ");
     PgmPrint("Node ID: ");
     Serial.println(i);
-    if (nodes[i].lastindex == 255)
+    if (nodes[i].lastindex == 0)
     {
       PgmPrintln("no_data");
     }
@@ -355,7 +355,7 @@ void printAllNodes()
       PgmPrintln("time, temp, ");
 
       byte index = nodes[i].lastindex;      
-      for (int j = 0; j <= index; j++)
+      for (int j = 0; j < index; j++)
       {
         unsigned long time = nodes[i].times[j];
         unsigned int reading = nodes[i].readings[j];
@@ -374,12 +374,13 @@ unsigned long lasttime = 0;
 
 void recordTestData()
 {
-  unsigned long elapsed = (millis() / (unsigned long)1000) - lasttime;
+  unsigned long elapsed = millis() - lasttime;
   if (elapsed > 5000)
   {    
     lasttime = millis();
     counter++;
-    addData(0, 0, counter, millis());
+    unsigned long time = (millis() / 1000) + timeoffset;
+    addData(0, 0, counter, time);
   }
 }
 
@@ -463,7 +464,7 @@ void recordReceivedData()
     }
 
     unsigned int reading = (msgData[2] << 8) | msgData[3];
-    unsigned long time = millis() + timeoffset;
+    unsigned long time = (millis() / 1000) + timeoffset;
 
     if (debug_live)
     {
@@ -477,15 +478,6 @@ void recordReceivedData()
 
     // Add data reading
     addData(nodeID, thisMsgNum, reading, time);
-
-    if (nodes[nodeID].lastindex >= 11)
-    {
-      // Write data to file
-      writeNodeFile(nodeID);
-
-      // Prepare for new data
-      nodes[nodeID].lastindex = 0;
-    }
   }
 }
 
@@ -494,13 +486,13 @@ void addData(byte nodeID,
              unsigned int reading,
              unsigned long time)
 {
-  nodes[nodeID].lastmsgnum = thisMsgNum;
-  nodes[nodeID].lastindex++;  
+  nodes[nodeID].lastmsgnum = thisMsgNum;  
   byte index = nodes[nodeID].lastindex;
+  nodes[nodeID].lastindex++;
   nodes[nodeID].readings[index] = reading;
   nodes[nodeID].times[index] = time;
 
-  if (nodes[nodeID].lastindex >= 11)
+  if (nodes[nodeID].lastindex > 11)
   {
     // Write data to file
     writeNodeFile(nodeID);
@@ -551,7 +543,7 @@ void writeNodeFile(byte nodeID)
   logfile.println("time, temp, ");
 
   byte index = data.lastindex;
-  for (int j = 0; j <= index; j++)
+  for (int j = 0; j < index; j++)
   {
     unsigned long time = data.times[j];
     unsigned int reading = data.readings[j];
