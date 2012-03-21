@@ -428,25 +428,29 @@ void recordReceivedData()
       if (debug_msgnums)
       {
         PgmPrint("== dbg_msgs: retrans, node: ");
-        Serial.println((int)nodeID);
+        Serial.print((int)nodeID);
+        PgmPrint(" (msg num: ");
+        Serial.print((int)thisMsgNum);
+        PgmPrintln(")");
       }
       return;
     }
-
-    if (debug_msgnums)
+    else if (debug_msgnums)
     {
       byte lastnum = nodes[nodeID].lastmsgnum;
 
       if (lastnum == 255)
       {
         PgmPrint("== dbg_msgs 1st msg, node: ");
-        Serial.println((int)nodeID);
+        Serial.print((int)nodeID);
+        PgmPrint(" (msg num: ");
+        Serial.print((int)thisMsgNum);
+        PgmPrintln(")");
       }
       else
       {
-        byte expectednum = lastnum++;
-        expectednum++;
-        if (expectednum >= 32)
+        byte expectednum = lastnum + 1;
+        if (expectednum >= 31)
         {
           expectednum = 0;
         }
@@ -469,7 +473,10 @@ void recordReceivedData()
     if (debug_live)
     {
       PgmPrint("== dbg_live reading, node: ");
-      Serial.println((int)nodeID);
+      Serial.print((int)nodeID);
+      PgmPrint(" (msg num: ");
+      Serial.print((int)thisMsgNum);
+      PgmPrintln(")");
       float temp = ((float)reading) / 10.0;
       Serial.print(temp);
       PgmPrint(",");
