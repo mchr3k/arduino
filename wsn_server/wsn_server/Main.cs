@@ -22,6 +22,7 @@ namespace wsn_server
         private SerialPort mPort = null;
         private SaveFileDialog saveFileDialog = null;
         private OpenFileDialog openFileDialog = null;
+        private bool connected = false;
 
         public Main()
         {
@@ -66,7 +67,8 @@ namespace wsn_server
                 this.BeginInvoke(new Action<String>(AddMessageLine), "Connecting...");
                 try
                 {
-                    mPort.Open();                    
+                    mPort.Open();
+                    connected = true;
                     break;
                 }
                 catch (Exception ex)
@@ -126,6 +128,7 @@ namespace wsn_server
 
         private void ListFiles(string setTimeResp)
         {
+            dataList = new PointPairList();
             SendCommand("ls", DownloadFiles);
         }
 
@@ -146,6 +149,7 @@ namespace wsn_server
                     }
                 }
             }
+            this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");
         }
 
         private void ProcessFile(string fileData)
@@ -193,10 +197,9 @@ namespace wsn_server
             return Epoch.AddSeconds(seconds);
         }
 
-
+        PointPairList dataList = new PointPairList();
         private void ParseData(string downloadedStr)
-        {
-            PointPairList dataList = new PointPairList();
+        {            
             string[] lines = downloadedStr.Split(new char[] {'\n'}, 
                                                  StringSplitOptions.RemoveEmptyEntries);
             foreach (string line in lines)
@@ -222,8 +225,7 @@ namespace wsn_server
                     dataList.Add(x, y);
                 }
             }
-
-            this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");
+            
             this.BeginInvoke(new Action(() =>
             {
                 Graph.GraphPane.CurveList.Clear();
@@ -307,13 +309,16 @@ namespace wsn_server
 
         private void DoSend()
         {
-            string commandstr = CommandTextBox.Text;
-            CommandTextBox.Text = "";
-            ThreadPool.QueueUserWorkItem(new WaitCallback(
-                (object x) =>
-                {
-                    SendCommand(commandstr, NoOp);
-                }));
+            if (connected)
+            {
+                string commandstr = CommandTextBox.Text;
+                CommandTextBox.Text = "";
+                ThreadPool.QueueUserWorkItem(new WaitCallback(
+                    (object x) =>
+                    {
+                        SendCommand(commandstr, NoOp);
+                    }));
+            }
         }
 
         private void NoOp(string value) { }
