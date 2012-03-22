@@ -39,7 +39,7 @@ int lastfile[MAX_NODE_ID];
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // Start receiving data
   MANRX_SetRxPin(4);
@@ -68,12 +68,41 @@ char stringData[STR_DATA_LEN];
 
 void loop() 
 {
+  localTempReading();
   recordReceivedData();
   //recordTestData();
   if (SerReader.readString(stringData, STR_DATA_LEN) > 0)
   {
     processCommand();
   }
+}
+
+unsigned long lastReadingTime = 0;
+void localTempReading()
+{
+  if (timeoffset > 0)
+  {
+    unsigned long elapsed = (millis() - lastReadingTime) / 1000;
+    if (elapsed > 300)
+    {
+      unsigned int data = (unsigned int)(getTemp() * 10.0);    
+      unsigned long time = (millis() / 1000) + timeoffset;
+      addData(0, 0, data, time);
+      lastReadingTime = millis();
+    }
+  }
+}
+
+#define TmpPin 2
+float getTemp()
+{
+  int sensorValue = analogRead(TmpPin);
+  // Base VRef: 5000
+  // Calibrated VRef: 5000
+  // Constant: 5000 / 1024
+  float milliVolts = sensorValue * 4.8828125;
+  float tempC = (milliVolts - 500) / 10;
+  return tempC;
 }
 
 boolean debug_live = false;

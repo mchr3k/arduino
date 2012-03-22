@@ -24,6 +24,8 @@ namespace wsn_server
         private OpenFileDialog openFileDialog = null;
         private bool connected = false;
 
+        private Dictionary<string, string> nodeDescs = new Dictionary<string, string>();
+
         public Main()
         {
             InitializeComponent();
@@ -37,6 +39,9 @@ namespace wsn_server
             openFileDialog.Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*";
             openFileDialog.FilterIndex = 1;
             openFileDialog.RestoreDirectory = true;
+
+            nodeDescs["00"] = "Base Station";
+            nodeDescs["01"] = "Kitchen";
 
             PrepareGraph();
         }
@@ -128,7 +133,7 @@ namespace wsn_server
 
         private void ListFiles(string setTimeResp)
         {
-            dataList = new PointPairList();
+            collectedData.Clear();
             SendCommand("ls", DownloadFiles);
         }
 
@@ -149,7 +154,32 @@ namespace wsn_server
                     }
                 }
             }
-            this.BeginInvoke(new Action<String>(AddMessageLine), "Found " + dataList.Count + " data items!");
+            this.BeginInvoke(new Action(() =>
+            {
+                Graph.GraphPane.CurveList.Clear();
+            }));
+            foreach (string nodeID in collectedData.Keys)
+            {
+                string nodeDesc = null;
+                if (nodeDescs.ContainsKey(nodeID))
+                {
+                    nodeDesc = nodeDescs[nodeID];
+                }
+                PointPairList nodeData = collectedData[nodeID];
+                this.BeginInvoke(new Action<String>(AddMessageLine), "Node " + nodeID + ": Found " + nodeData.Count + " data items!");
+                this.BeginInvoke(new Action(() =>
+                {
+                    string title = "Node " + nodeID;
+                    if (nodeDesc != null)
+                    {
+                        title += " (" + nodeDesc + ")";
+                    }
+                    Graph.GraphPane.AddCurve(title, nodeData, Color.Black, SymbolType.None);
+                    Graph.GraphPane.Title.Text = "Temp";
+                    Graph.AxisChange();
+                    Graph.Refresh();
+                }));
+            }            
         }
 
         private void ProcessFile(string fileData)
@@ -197,19 +227,29 @@ namespace wsn_server
             return Epoch.AddSeconds(seconds);
         }
 
-        PointPairList dataList = new PointPairList();
+        Dictionary<string, PointPairList> collectedData = new Dictionary<string, PointPairList>();
         private void ParseData(string downloadedStr)
-        {            
+        {
+            string fileName = null;
+            PointPairList thisData = new PointPairList();
             string[] lines = downloadedStr.Split(new char[] {'\n'}, 
                                                  StringSplitOptions.RemoveEmptyEntries);
             foreach (string line in lines)
             {
-                Match match = Regex.Match(line,
+                Match filenamematch = Regex.Match(line,
+                                    @"[\d]{8}.CSV:",
+                                    RegexOptions.IgnorePatternWhitespace);
+                if (filenamematch.Success)
+                {
+                    fileName = line.Substring(0, 2);
+                }
+
+                Match datamatch = Regex.Match(line,
                                     @"[\d]+,[\d]+\.[\d]+",
                                     RegexOptions.IgnorePatternWhitespace);
-                if (match.Success)
+                if (datamatch.Success)
                 {
-                    string matchVal = match.Value;
+                    string matchVal = datamatch.Value;
                     string[] matchParts = matchVal.Split(new char[] { ',' });
 
                     string timeStr = matchParts[0];
@@ -222,18 +262,28 @@ namespace wsn_server
                     XDate graphDataDateTime = new XDate(dataDateTime);
                     x = (double)graphDataDateTime;
                     y = tempValue;
-                    dataList.Add(x, y);
+                    thisData.Add(x, y);
                 }
             }
-            
-            this.BeginInvoke(new Action(() =>
+
+            if (fileName != null)
             {
-                Graph.GraphPane.CurveList.Clear();
-                Graph.GraphPane.AddCurve("Temp", dataList, Color.Black, SymbolType.None);
-                Graph.GraphPane.Title.Text = "Temp";
-                Graph.AxisChange();
-                Graph.Refresh();
-            }));
+                PointPairList nodeData = null;
+                try
+                {
+                    nodeData = collectedData[fileName];
+                }
+                catch (KeyNotFoundException ex)
+                {
+                    // Ignore
+                }
+                if (nodeData == null)
+                {
+                    nodeData = new PointPairList();
+                    collectedData[fileName] = nodeData;
+                }
+                nodeData.Add(thisData);
+            }
         }
 
         private void ClearButton_Click(object sender, EventArgs e)
