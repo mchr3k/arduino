@@ -16,6 +16,10 @@ typedef struct
   byte lastindex;
   // last msg num: 0-31 (init'd to -1)
   byte lastmsgnum;
+  // number of missed transmissions
+  byte errorcount;
+  // number of retransmissions
+  byte retranscount;
 } 
 NodeData;
 
@@ -50,7 +54,9 @@ void setup()
   { 
     nodes[i].lastindex = 0;
     nodes[i].lastmsgnum = 255;
-    lastfile[i] = 0;
+    nodes[i].errorcount = 0;
+    nodes[i].retranscount = 0;
+    lastfile[i] = 0;    
   }
 
   // make sure that the default chip select pin is set to
@@ -66,6 +72,10 @@ SerialReader SerReader;
 const int STR_DATA_LEN = 50;
 char stringData[STR_DATA_LEN];
 
+boolean debug_live = false;
+boolean debug_msgnums = false;
+boolean debug_files = false;
+
 void loop() 
 {
   localTempReading();
@@ -74,7 +84,7 @@ void loop()
   if (SerReader.readString(stringData, STR_DATA_LEN) > 0)
   {
     processCommand();
-  }
+  }  
 }
 
 unsigned long lastReadingTime = 0;
@@ -85,8 +95,19 @@ void localTempReading()
     unsigned long elapsed = (millis() - lastReadingTime) / 1000;
     if (elapsed > 300)
     {
-      unsigned int data = (unsigned int)(getTemp() * 10.0);    
+      unsigned int data = convertTemp(getTemp(), 5000.0);
       unsigned long time = (millis() / 1000) + timeoffset;
+      
+      if (debug_live)
+      {
+        PgmPrint("== dbg_live reading, node: ");
+        Serial.println((int)0);
+        float temp = ((float)data) / 10.0;
+        Serial.print(temp);
+        PgmPrint(",");
+        Serial.println(time);
+      }
+      
       addData(0, 0, data, time);
       lastReadingTime = millis();
     }
@@ -94,20 +115,17 @@ void localTempReading()
 }
 
 #define TmpPin 2
-float getTemp()
+unsigned int getTemp()
 {
-  int sensorValue = analogRead(TmpPin);
-  // Base VRef: 5000
-  // Calibrated VRef: 5000
-  // Constant: 5000 / 1024
-  float milliVolts = sensorValue * 4.8828125;
-  float tempC = (milliVolts - 500) / 10;
-  return tempC;
+  return (unsigned int)analogRead(TmpPin);
 }
 
-boolean debug_live = false;
-boolean debug_msgnums = false;
-boolean debug_files = false;
+unsigned int convertTemp(unsigned int reading, float aref)
+{
+  float milliVolts = (float)reading * (aref / 1024.0);
+  float tempC = (milliVolts - 500) / 10;
+  return (unsigned int)(tempC * 10.0);
+}
 
 void processCommand()
 {
@@ -454,6 +472,7 @@ void recordReceivedData()
     // Ignore duplicates
     if (nodes[nodeID].lastmsgnum == thisMsgNum)
     {
+      nodes[nodeID].retranscount++;
       if (debug_msgnums)
       {
         PgmPrint("== dbg_msgs: retrans, node: ");
@@ -464,17 +483,19 @@ void recordReceivedData()
       }
       return;
     }
-    else if (debug_msgnums)
+    else
     {
       byte lastnum = nodes[nodeID].lastmsgnum;
-
       if (lastnum == 255)
       {
-        PgmPrint("== dbg_msgs 1st msg, node: ");
-        Serial.print((int)nodeID);
-        PgmPrint(" (msg num: ");
-        Serial.print((int)thisMsgNum);
-        PgmPrintln(")");
+        if (debug_msgnums)
+        {
+          PgmPrint("== dbg_msgs 1st msg, node: ");
+          Serial.print((int)nodeID);
+          PgmPrint(" (msg num: ");
+          Serial.print((int)thisMsgNum);
+          PgmPrintln(")");
+        }
       }
       else
       {
@@ -486,17 +507,33 @@ void recordReceivedData()
 
         if (expectednum != thisMsgNum)
         {
-          PgmPrint("== dbg_msgs err msgnum, node: ");
-          Serial.println((int)nodeID);
-          PgmPrint("exp'd: ");
-          Serial.println((int)expectednum);
-          PgmPrint("recv'd: ");
-          Serial.println((int)thisMsgNum);
+          nodes[nodeID].errorcount++;
+          if (debug_msgnums)
+          {
+            PgmPrint("== dbg_msgs err msgnum, node: ");
+            Serial.println((int)nodeID);
+            PgmPrint("exp'd: ");
+            Serial.println((int)expectednum);
+            PgmPrint("recv'd: ");
+            Serial.println((int)thisMsgNum);
+          }
+        }
+        else if (nodes[nodeID].retranscount < 2)
+        {
+          nodes[nodeID].errorcount++;
+          if (debug_msgnums)
+          {
+            PgmPrint("== dbg_msgs err_missed_retrans, node: ");
+            Serial.println((int)nodeID);
+            PgmPrint("lastnum: ");
+            Serial.println((int)lastnum);
+          }
         }
       }
     }
 
     unsigned int reading = (msgData[2] << 8) | msgData[3];
+    reading = convertTemp(reading, 1100.0);
     unsigned long time = (millis() / 1000) + timeoffset;
 
     if (debug_live)
@@ -535,6 +572,8 @@ void addData(byte nodeID,
 
     // Prepare for new data
     nodes[nodeID].lastindex = 0;
+    nodes[nodeID].errorcount = 0;
+    nodes[nodeID].retranscount = 0;
   }
 }
 
@@ -576,6 +615,8 @@ void writeNodeFile(byte nodeID)
   NodeData data = nodes[nodeID];
   logfile.print("Node ID: ");
   logfile.println((int)nodeID);
+  logfile.print("Errors: ");
+  logfile.println((int)nodes[nodeID].errorcount);
   logfile.println("time, temp, ");
 
   byte index = data.lastindex;

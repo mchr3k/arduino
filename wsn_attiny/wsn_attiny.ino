@@ -50,7 +50,7 @@ void loop()
 {
   waketmp();
   delay(10);
-  unsigned int data = (unsigned int)(getTemp() * 10.0);    
+  unsigned int data = getTemp();
   sleeptmp();
   
   waketx();
@@ -61,15 +61,9 @@ void loop()
   deepsleep(70); // 4 minutes, 40 seconds
 }
 
-float getTemp()
+unsigned int getTemp()
 {
-  int sensorValue = analogRead(TmpPin);
-  // Base VRef: 1100
-  // Calibrated VRef: 1028
-  // Constant: 1028 / 1024
-  float milliVolts = sensorValue * 1.00390625;
-  float tempC = (milliVolts - 500) / 10;
-  return tempC;
+  return (unsigned int)analogRead(TmpPin);
 }
 
 void sleeptx()
